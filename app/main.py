@@ -19,10 +19,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
-OtpBase.metadata.create_all(bind=engine)
-UserBase.metadata.create_all(bind=engine)
+# Create database tables only if engine exists
+if engine:
+    try:
+        Base.metadata.create_all(bind=engine)
+        OtpBase.metadata.create_all(bind=engine)
+        UserBase.metadata.create_all(bind=engine)
+        print("All database tables created successfully")
+    except Exception as e:
+        print(f"Failed to create database tables: {e}")
+else:
+    print("Database not available - running in mock mode")
 
 # Include routers
 app.include_router(auth.router, prefix="/api", tags=["Authentication"])
