@@ -3,7 +3,7 @@ import os
 
 class GeminiService:
     def __init__(self):
-        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+        genai.configure(api_key=os.environ["    GEMINI_API_KEY"])
         self.model = genai.GenerativeModel('gemini-pro')
 
     def get_gemini_response(self, user_message: str) -> str:
