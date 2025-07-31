@@ -1,19 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.db.models import Profile
 from app.models.profile import ProfileRequest, ProfileResponse, ProfileServiceDto
 from app.dependencies import get_current_user
-from app.db.models import SessionLocal
+from app.db.models import get_db
 from typing import Dict
 
 router = APIRouter()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @router.post("/profile", response_model=ProfileResponse)
 async def setup_profile(profile_request: ProfileRequest):
