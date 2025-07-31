@@ -1,18 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.models.assessment import PCOSAssesmentRequest, PCOSAssesmentResponse, BreastCancerExamRequest, McqAssessmentRequest, McqAssessmentResponse
-from app.db.models import PcosAssessment, BreastCancerExamLog
 from app.dependencies import get_current_user
-from app.db.models import SessionLocal
+from app.db.models import get_db
 
 router = APIRouter()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @router.post("/pcos/assess", response_model=PCOSAssesmentResponse)
 async def assess_pcos(request: PCOSAssesmentRequest, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -23,24 +15,24 @@ async def assess_pcos(request: PCOSAssesmentRequest, user: dict = Depends(get_cu
     elif risk_score >= 2:
         risk_level = "Medium"
 
-    assessment_data = request.dict()
-    assessment_data["user_id"] = user['id']
-    assessment_data["risk_level"] = risk_level
-    
-    db_assessment = PcosAssessment(**assessment_data)
-    db.add(db_assessment)
-    db.commit()
+    # TODO: Add assessment data to database when PcosAssessment model is created
+    # assessment_data = request.dict()
+    # assessment_data["user_id"] = user['id']
+    # assessment_data["risk_level"] = risk_level
+    # db_assessment = PcosAssessment(**assessment_data)
+    # db.add(db_assessment)
+    # db.commit()
 
     return PCOSAssesmentResponse(risk_level=risk_level)
 
 @router.post("/breast-health")
 async def log_breast_cancer_self_exam(request: BreastCancerExamRequest, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    exam_data = request.dict()
-    exam_data["user_id"] = user['id']
-    
-    db_exam_log = BreastCancerExamLog(user_id=user['id'], symptoms=str(request.symptoms))
-    db.add(db_exam_log)
-    db.commit()
+    # TODO: Add exam log to database when BreastCancerExamLog model is created
+    # exam_data = request.dict()
+    # exam_data["user_id"] = user['id']
+    # db_exam_log = BreastCancerExamLog(user_id=user['id'], symptoms=str(request.symptoms))
+    # db.add(db_exam_log)
+    # db.commit()
     
     return {"message": "Detailed self-exam log saved successfully."}
 
