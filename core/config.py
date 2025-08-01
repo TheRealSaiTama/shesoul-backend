@@ -4,8 +4,7 @@ Configuration settings for She&Soul FastAPI application
 
 import os
 from typing import List
-from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import BaseSettings, Field
 
 class Settings(BaseSettings):
     """Application settings"""
