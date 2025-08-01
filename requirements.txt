@@ -1,6 +1,6 @@
 # FastAPI and ASGI server
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+fastapi==0.103.2
+uvicorn[standard]==0.23.2
 gunicorn==21.2.0
 
 # Database
@@ -14,8 +14,8 @@ passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
 
 # Configuration and environment
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic==2.4.2
+pydantic-settings==2.0.3
 python-dotenv==1.0.0
 
 # Email
@@ -31,25 +31,25 @@ loguru==0.7.2
 
 # CORS is handled by FastAPI's built-in middleware
 
-# Rate limiting
-slowapi==0.1.9
+# Rate limiting (optional for initial deployment)
+# slowapi==0.1.9
 
-# Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
+# Testing (optional for production)
+# pytest==7.4.3
+# pytest-asyncio==0.21.1
 
 # Development (optional for production)
 # black==23.11.0
 # isort==5.12.0
 # flake8==6.1.0
 
-# AI/ML (for Gemini integration)
-google-generativeai==0.3.2
+# AI/ML (for Gemini integration) - optional for initial deployment
+# google-generativeai==0.3.2
 
-# JSON handling
-orjson==3.9.10
+# JSON handling (optional)
+# orjson==3.9.10
 
-# Date/time handling
-python-dateutil==2.8.2
+# Date/time handling (optional)
+# python-dateutil==2.8.2
 
 # Health checks (handled by FastAPI built-in) 

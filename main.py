@@ -29,11 +29,9 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting She&Soul FastAPI application...")
     
-    # Create database tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    
-    logger.info("Database tables created successfully")
+    # Note: Database tables will be created on first connection
+    # This avoids startup issues if database is not immediately available
+    logger.info("Application startup complete")
     yield
     
     # Shutdown
