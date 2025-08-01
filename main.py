@@ -15,7 +15,7 @@ import sys
 
 from core.config import settings
 from core.database import engine, Base
-from api.routes import auth, app, chat, article, dashboard, pcos, report
+from api.routes import auth, app as app_router, chat, article, dashboard, pcos, report
 from core.security import get_current_user
 
 # Configure logging
@@ -66,7 +66,7 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(auth.router, prefix="/api", tags=["Authentication"])
-app.include_router(app.router, prefix="/api", tags=["App"])
+app.include_router(app_router.router, prefix="/api", tags=["App"])
 app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(article.router, prefix="/api", tags=["Articles"])
 app.include_router(dashboard.router, prefix="/api", tags=["Dashboard"])
