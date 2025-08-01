@@ -68,12 +68,13 @@ class AppService:
             raise ValueError("Email is already verified.")
         
         # Validate OTP
-        if not self.otp_service.is_otp_valid(db, email, submitted_otp):
+        valid_otp = self.otp_service.is_otp_valid(db, email, submitted_otp)
+        if not valid_otp:
             raise ValueError("Invalid or expired OTP.")
         
-        # Mark email as verified
+        # Mark email as verified and OTP as used
         user.is_email_verified = True
-        self.otp_service.mark_otp_as_used(db, email)
+        self.otp_service.mark_otp_as_used(db, valid_otp)
         db.commit()
     
     def resend_otp(self, db: Session, email: str) -> None:

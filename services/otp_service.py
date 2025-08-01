@@ -48,8 +48,8 @@ class OtpGenerationService:
         
         return otp_entity.otp_code if otp_entity else None
     
-    def is_otp_valid(self, db: Session, email: str, otp_code: str) -> bool:
-        """Check if the provided OTP is valid"""
+    def is_otp_valid(self, db: Session, email: str, otp_code: str) -> Optional[Otp]:
+        """Check if the provided OTP is valid and return it if found"""
         now = datetime.utcnow()
         
         otp_entity = db.query(Otp).filter(
@@ -59,11 +59,11 @@ class OtpGenerationService:
             Otp.used == False
         ).first()
         
-        return otp_entity is not None
+        return otp_entity
     
-    def mark_otp_as_used(self, db: Session, email: str) -> None:
-        """Mark all OTPs for an email as used"""
-        db.query(Otp).filter(Otp.email == email).update({"used": True})
+    def mark_otp_as_used(self, db: Session, otp: Otp) -> None:
+        """Mark a specific OTP as used"""
+        otp.used = True
         db.commit()
     
     def clear_otps(self, db: Session, email: str) -> None:
