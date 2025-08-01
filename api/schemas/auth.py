@@ -12,17 +12,9 @@ class LoginRequest(BaseModel):
     password: str = Field(..., min_length=6, description="User password")
 
 class SignUpRequest(BaseModel):
-    """Sign up request schema"""
+    """Sign up request schema - simplified like Java implementation"""
     email: EmailStr = Field(..., description="User email")
-    password: str = Field(..., min_length=6, description="User password")
-    name: str = Field(..., min_length=1, description="User name")
-    nick_name: Optional[str] = Field(None, description="User nickname")
-    user_type: str = Field(..., description="User type (USER or PARTNER)")
-    age: Optional[int] = Field(None, ge=0, le=120, description="User age")
-    height: Optional[float] = Field(None, ge=0, description="User height")
-    weight: Optional[float] = Field(None, ge=0, description="User weight")
-    referral_code: Optional[str] = Field(None, description="Referral code")
-    referred_code: Optional[str] = Field(None, description="Referred code")
+    password: str = Field(..., min_length=8, description="User password (minimum 8 characters)")
 
 class VerifyEmailRequest(BaseModel):
     """Email verification request schema"""
