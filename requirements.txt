@@ -1,9 +1,54 @@
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-sqlalchemy==1.4.46
+# FastAPI and ASGI server
+fastapi==0.95.2
+uvicorn[standard]==0.22.0
+gunicorn==21.2.0
+
+# Database
+sqlalchemy==2.0.23
 psycopg2-binary==2.9.7
-pydantic==2.9.1
-email-validator==2.0.0
-bcrypt==4.0.1
+alembic==1.12.1
+
+# Security and authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
-google-generativeai==0.3.2
+
+# Configuration and environment
+pydantic==1.10.13
+python-dotenv==1.0.0
+
+# Email
+aiosmtplib==3.0.1
+email-validator==2.1.0
+
+# HTTP client
+httpx==0.25.2
+aiohttp==3.9.1
+
+# Logging
+loguru==0.7.2
+
+# CORS is handled by FastAPI's built-in middleware
+
+# Rate limiting (optional for initial deployment)
+# slowapi==0.1.9
+
+# Testing (optional for production)
+# pytest==7.4.3
+# pytest-asyncio==0.21.1
+
+# Development (optional for production)
+# black==23.11.0
+# isort==5.12.0
+# flake8==6.1.0
+
+# AI/ML (for Gemini integration) - optional for initial deployment
+# google-generativeai==0.3.2
+
+# JSON handling (optional)
+# orjson==3.9.10
+
+# Date/time handling (optional)
+# python-dateutil==2.8.2
+
+# Health checks (handled by FastAPI built-in) 
