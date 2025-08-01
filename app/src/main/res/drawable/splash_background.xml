@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- White background to match PrivacyScreen -->
+    <item android:drawable="@android:color/white" />
+    
+    <!-- Circular background -->
+    <item 
+        android:width="180dp"
+        android:height="180dp"
+        android:gravity="center">
+        <shape android:shape="oval">
+            <solid android:color="#E0BBFF" />
+        </shape>
+    </item>
+    
+    <!-- Logo inside the circle -->
+    <item 
+        android:width="160dp"
+        android:height="160dp"
+        android:gravity="center"
+        android:drawable="@drawable/whiteroundedlogo" />
+</layer-list>
