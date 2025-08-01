@@ -4,7 +4,7 @@ Email service for She&Soul FastAPI application
 
 import asyncio
 from typing import Optional
-from aiosmtplib import SMTP
+import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from core.config import settings
@@ -20,7 +20,7 @@ class EmailService:
         self.smtp_tls = settings.SMTP_TLS
         self.smtp_auth = settings.SMTP_AUTH
     
-    async def send_email(self, to_email: str, subject: str, body: str, html_body: Optional[str] = None) -> bool:
+    def send_email(self, to_email: str, subject: str, body: str, html_body: Optional[str] = None) -> bool:
         """Send an email"""
         try:
             message = MIMEMultipart("alternative")
@@ -37,14 +37,12 @@ class EmailService:
                 message.attach(html_part)
             
             # Send email
-            async with SMTP(
-                hostname=self.smtp_host,
-                port=self.smtp_port,
-                use_tls=self.smtp_tls,
-                username=self.smtp_username,
-                password=self.smtp_password
-            ) as smtp:
-                await smtp.send_message(message)
+            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                if self.smtp_tls:
+                    server.starttls()
+                if self.smtp_auth:
+                    server.login(self.smtp_username, self.smtp_password)
+                server.send_message(message)
             
             return True
             
@@ -52,7 +50,7 @@ class EmailService:
             print(f"Failed to send email: {str(e)}")
             return False
     
-    async def send_otp_email(self, to_email: str, otp_code: str) -> bool:
+    def send_otp_email(self, to_email: str, otp_code: str) -> bool:
         """Send OTP verification email"""
         subject = "She&Soul - Email Verification OTP"
         body = f"""
@@ -82,9 +80,9 @@ class EmailService:
         </html>
         """
         
-        return await self.send_email(to_email, subject, body, html_body)
+        return self.send_email(to_email, subject, body, html_body)
     
-    async def send_welcome_email(self, to_email: str, user_name: str) -> bool:
+    def send_welcome_email(self, to_email: str, user_name: str) -> bool:
         """Send welcome email to new users"""
         subject = "Welcome to She&Soul!"
         body = f"""
@@ -111,4 +109,4 @@ class EmailService:
         </html>
         """
         
-        return await self.send_email(to_email, subject, body, html_body) 
+        return self.send_email(to_email, subject, body, html_body)

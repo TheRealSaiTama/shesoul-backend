@@ -50,9 +50,9 @@ class AppService:
         db.refresh(new_user)
         
         # TODO: Add OTP email sending back after basic signup works
-        # otp = self.otp_service.generate_otp()
-        # await self.otp_service.store_otp(db, new_user.email, otp)
-        # await self.email_service.send_otp_email(new_user.email, otp)
+        otp = self.otp_service.generate_otp()
+        self.otp_service.store_otp(db, new_user.email, otp)
+        self.email_service.send_otp_email(new_user.email, otp)
         
         return new_user
     

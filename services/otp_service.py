@@ -6,7 +6,7 @@ Based on Java implementation
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlalchemy import select, delete, update
 from db.models.otp import Otp
 
@@ -23,7 +23,7 @@ class OtpGenerationService:
         """Generate a 6-digit OTP"""
         return str(secrets.randbelow(900000) + 100000)
     
-    async def store_otp(self, db: AsyncSession, email: str, otp: str) -> None:
+    def store_otp(self, db: Session, email: str, otp: str) -> None:
         """Store OTP in database with expiration time"""
         otp_entity = Otp(
             email=email,
@@ -34,64 +34,45 @@ class OtpGenerationService:
         )
         
         db.add(otp_entity)
-        await db.commit()
+        db.commit()
     
-    async def get_latest_otp(self, db: AsyncSession, email: str) -> Optional[str]:
+    def get_latest_otp(self, db: Session, email: str) -> Optional[str]:
         """Get the latest valid OTP for an email"""
         now = datetime.utcnow()
         
-        result = await db.execute(
-            select(Otp)
-            .where(
-                Otp.email == email,
-                Otp.expires_at > now,
-                Otp.used == False
-            )
-            .order_by(Otp.created_at.desc())
-            .limit(1)
-        )
+        otp_entity = db.query(Otp).filter(
+            Otp.email == email,
+            Otp.expires_at > now,
+            Otp.used == False
+        ).order_by(Otp.created_at.desc()).first()
         
-        otp_entity = result.scalar_one_or_none()
         return otp_entity.otp_code if otp_entity else None
     
-    async def is_otp_valid(self, db: AsyncSession, email: str, otp_code: str) -> bool:
+    def is_otp_valid(self, db: Session, email: str, otp_code: str) -> bool:
         """Check if the provided OTP is valid"""
         now = datetime.utcnow()
         
-        result = await db.execute(
-            select(Otp)
-            .where(
-                Otp.email == email,
-                Otp.otp_code == otp_code,
-                Otp.expires_at > now,
-                Otp.used == False
-            )
-        )
+        otp_entity = db.query(Otp).filter(
+            Otp.email == email,
+            Otp.otp_code == otp_code,
+            Otp.expires_at > now,
+            Otp.used == False
+        ).first()
         
-        return result.scalar_one_or_none() is not None
+        return otp_entity is not None
     
-    async def mark_otp_as_used(self, db: AsyncSession, email: str) -> None:
+    def mark_otp_as_used(self, db: Session, email: str) -> None:
         """Mark all OTPs for an email as used"""
-        await db.execute(
-            update(Otp)
-            .where(Otp.email == email)
-            .values(used=True)
-        )
-        await db.commit()
+        db.query(Otp).filter(Otp.email == email).update({"used": True})
+        db.commit()
     
-    async def clear_otps(self, db: AsyncSession, email: str) -> None:
+    def clear_otps(self, db: Session, email: str) -> None:
         """Clear all OTPs for an email"""
-        await db.execute(
-            delete(Otp)
-            .where(Otp.email == email)
-        )
-        await db.commit()
+        db.query(Otp).filter(Otp.email == email).delete()
+        db.commit()
     
-    async def cleanup_expired_otps(self, db: AsyncSession) -> None:
+    def cleanup_expired_otps(self, db: Session) -> None:
         """Clean up expired OTPs"""
         now = datetime.utcnow()
-        await db.execute(
-            delete(Otp)
-            .where(Otp.expires_at <= now)
-        )
-        await db.commit()
+        db.query(Otp).filter(Otp.expires_at <= now).delete()
+        db.commit()
