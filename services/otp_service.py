@@ -30,7 +30,7 @@ class OtpGenerationService:
             otp_code=otp,
             created_at=datetime.utcnow(),
             expires_at=datetime.utcnow() + timedelta(minutes=self.OTP_EXPIRY_MINUTES),
-            is_used=False
+            used=False
         )
         
         db.add(otp_entity)
@@ -45,7 +45,7 @@ class OtpGenerationService:
             .where(
                 Otp.email == email,
                 Otp.expires_at > now,
-                Otp.is_used == False
+                Otp.used == False
             )
             .order_by(Otp.created_at.desc())
             .limit(1)
@@ -64,7 +64,7 @@ class OtpGenerationService:
                 Otp.email == email,
                 Otp.otp_code == otp_code,
                 Otp.expires_at > now,
-                Otp.is_used == False
+                Otp.used == False
             )
         )
         
@@ -75,7 +75,7 @@ class OtpGenerationService:
         await db.execute(
             update(Otp)
             .where(Otp.email == email)
-            .values(is_used=True)
+            .values(used=True)
         )
         await db.commit()
     

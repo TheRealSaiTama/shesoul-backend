@@ -3,7 +3,6 @@ OTP model for She&Soul FastAPI application
 """
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean
-from sqlalchemy.sql import func
 from core.database import Base
 
 class Otp(Base):
@@ -13,9 +12,9 @@ class Otp(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, nullable=False, index=True)
     otp_code = Column(String, nullable=False)
-    is_used = Column(Boolean, default=False)
+    used = Column(Boolean, default=False)
     expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime, nullable=False)
     
     def __repr__(self):
-        return f"<Otp(id={self.id}, email='{self.email}', is_used={self.is_used})>" 
+        return f"<Otp(id={self.id}, email='{self.email}', used={self.used})>" 
