@@ -2,9 +2,8 @@
 Profile model for She&Soul FastAPI application
 """
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, Float, ForeignKey, Enum, Text
+from sqlalchemy import Column, Integer, String, Boolean, Date, Float, ForeignKey, Enum, Text
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import JSONB
 import enum
 from core.database import Base
@@ -60,10 +59,6 @@ class Profile(Base):
     
     # Medical summary (JSONB)
     medical_summary = Column(JSONB)
-    
-    # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationship
     user = relationship("User", back_populates="profile")
