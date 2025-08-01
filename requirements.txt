@@ -19,7 +19,7 @@ pydantic-settings
 python-dotenv
 
 # Email
-aiosmtplib==3.0.1
+# aiosmtplib==3.0.1 - Replaced with built-in smtplib
 email-validator==2.1.0
 
 # HTTP client
@@ -52,4 +52,4 @@ loguru==0.7.2
 # Date/time handling (optional)
 # python-dateutil==2.8.2
 
-# Health checks (handled by FastAPI built-in) 
+# Health checks (handled by FastAPI built-in)
