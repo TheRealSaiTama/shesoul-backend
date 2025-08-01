@@ -4,38 +4,9 @@ Cursor Auto Mode Active — Running on OpenAI GPT-4
 She&Soul FastAPI Backend - Migrated from Java Spring Boot
 """
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from contextlib import asynccontextmanager
 import uvicorn
-import logging
-from loguru import logger
-import sys
-
-from core.config import settings
-from core.database import engine, Base
-from api.routes import auth, app as app_router, chat, article, dashboard, pcos, report
-from core.security import get_current_user
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger.remove()
-logger.add(sys.stdout, level=logging.INFO, format="{time} | {level} | {message}")
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan events"""
-    # Startup
-    logger.info("Starting She&Soul FastAPI application...")
-    
-    # Note: Database tables will be created on first connection
-    # This avoids startup issues if database is not immediately available
-    logger.info("Application startup complete")
-    yield
-    
-    # Shutdown
-    logger.info("Shutting down She&Soul FastAPI application...")
 
 # Create FastAPI app
 app = FastAPI(
@@ -43,33 +14,17 @@ app = FastAPI(
     description="FastAPI backend for She&Soul application - Migrated from Java Spring Boot",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc",
-    lifespan=lifespan
+    redoc_url="/redoc"
 )
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["*"],  # Configure based on your deployment environment
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Add trusted host middleware for security
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=["*"]  # Configure based on your deployment environment
-)
-
-# Include API routes
-app.include_router(auth.router, prefix="/api", tags=["Authentication"])
-app.include_router(app_router.router, prefix="/api", tags=["App"])
-app.include_router(chat.router, prefix="/api", tags=["Chat"])
-app.include_router(article.router, prefix="/api", tags=["Articles"])
-app.include_router(dashboard.router, prefix="/api", tags=["Dashboard"])
-app.include_router(pcos.router, prefix="/api", tags=["PCOS"])
-app.include_router(report.router, prefix="/api", tags=["Reports"])
 
 @app.get("/")
 async def root():
@@ -81,10 +36,10 @@ async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "service": "She&Soul API"}
 
-@app.get("/protected")
-async def protected_route(current_user = Depends(get_current_user)):
-    """Protected route example"""
-    return {"message": "This is a protected route", "user": current_user.email}
+@app.get("/api/test")
+async def test_endpoint():
+    """Test endpoint"""
+    return {"message": "API is working correctly!"}
 
 if __name__ == "__main__":
     uvicorn.run(
