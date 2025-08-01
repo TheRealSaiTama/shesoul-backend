@@ -56,11 +56,10 @@ class AppService:
         
         return new_user
     
-    async def verify_email(self, db: AsyncSession, email: str, submitted_otp: str) -> None:
+    def verify_email(self, db: Session, email: str, submitted_otp: str) -> None:
         """Verify user email with OTP"""
         # Find user
-        result = await db.execute(select(User).where(User.email == email))
-        user = result.scalar_one_or_none()
+        user = db.query(User).filter(User.email == email).first()
         
         if not user:
             raise ValueError(f"User not found with email: {email}")
@@ -69,19 +68,18 @@ class AppService:
             raise ValueError("Email is already verified.")
         
         # Validate OTP
-        if not await self.otp_service.is_otp_valid(db, email, submitted_otp):
+        if not self.otp_service.is_otp_valid(db, email, submitted_otp):
             raise ValueError("Invalid or expired OTP.")
         
         # Mark email as verified
         user.is_email_verified = True
-        await self.otp_service.mark_otp_as_used(db, email)
-        await db.commit()
+        self.otp_service.mark_otp_as_used(db, email)
+        db.commit()
     
-    async def resend_otp(self, db: AsyncSession, email: str) -> None:
+    def resend_otp(self, db: Session, email: str) -> None:
         """Resend OTP to user email"""
         # Find user
-        result = await db.execute(select(User).where(User.email == email))
-        user = result.scalar_one_or_none()
+        user = db.query(User).filter(User.email == email).first()
         
         if not user:
             raise ValueError(f"User not found with email: {email}")
@@ -91,16 +89,15 @@ class AppService:
         
         # Generate and send new OTP
         otp = self.otp_service.generate_otp()
-        await self.otp_service.store_otp(db, user.email, otp)
-        await self.email_service.send_otp_email(user.email, otp)
+        self.otp_service.store_otp(db, user.email, otp)
+        self.email_service.send_otp_email(user.email, otp)
     
-    async def create_profile(self, db: AsyncSession, request: ProfileRequest, user: User) -> ProfileResponse:
+    def create_profile(self, db: Session, request: ProfileRequest, user: User) -> ProfileResponse:
         """
         Create user profile (separate from signup like Java implementation)
         """
         # Check if user already has profile
-        result = await db.execute(select(Profile).where(Profile.user_id == user.id))
-        existing_profile = result.scalar_one_or_none()
+        existing_profile = db.query(Profile).filter(Profile.user_id == user.id).first()
         
         if existing_profile:
             raise ValueError("User already has a profile.")
@@ -120,17 +117,15 @@ class AppService:
             profile.preferred_service_type = request.preferred_service_type
             
             db.add(profile)
-            await db.flush()  # Get profile ID
+            db.flush()  # Get profile ID
             
             # Generate referral code
             new_code = self.referral_service.generate_code(profile.id)
             
             # Ensure referral code is unique
             while True:
-                existing_code = await db.execute(
-                    select(Profile).where(Profile.referral_code == new_code)
-                )
-                if not existing_code.scalar_one_or_none():
+                existing_code = db.query(Profile).filter(Profile.referral_code == new_code).first()
+                if not existing_code:
                     break
                 new_code = self.referral_service.generate_random_code()
             
@@ -141,17 +136,15 @@ class AppService:
                 raise ValueError("Referral code is required for partner use.")
             
             # Validate referral code
-            result = await db.execute(
-                select(Profile).where(Profile.referral_code == request.referred_by_code)
-            )
-            if not result.scalar_one_or_none():
+            referred_user_profile = db.query(Profile).filter(Profile.referral_code == request.referred_by_code).first()
+            if not referred_user_profile:
                 raise ValueError(f"Invalid referral code: {request.referred_by_code}")
             
             profile.referred_code = request.referred_by_code
             db.add(profile)
         
-        await db.commit()
-        await db.refresh(profile)
+        db.commit()
+        db.refresh(profile)
         
         return ProfileResponse(
             id=profile.id,
@@ -162,12 +155,11 @@ class AppService:
             referral_code=profile.referral_code
         )
     
-    async def login_user(self, db: AsyncSession, email: str, password: str) -> User:
+    def login_user(self, db: Session, email: str, password: str) -> User:
         """Login user with email and password"""
         from core.security import verify_password
         
-        result = await db.execute(select(User).where(User.email == email))
-        user = result.scalar_one_or_none()
+        user = db.query(User).filter(User.email == email).first()
         
         if not user:
             raise ValueError("Invalid email or password")
@@ -177,33 +169,30 @@ class AppService:
         
         return user
     
-    async def get_user_by_id(self, db: AsyncSession, user_id: int) -> User:
+    def get_user_by_id(self, db: Session, user_id: int) -> User:
         """Get user by ID"""
-        result = await db.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one_or_none()
+        user = db.query(User).filter(User.id == user_id).first()
         
         if not user:
             raise ValueError(f"User not found with ID: {user_id}")
         
         return user
     
-    async def update_user_service(self, db: AsyncSession, user_id: int, service_dto: ProfileServiceDto) -> ProfileServiceDto:
+    def update_user_service(self, db: Session, user_id: int, service_dto: ProfileServiceDto) -> ProfileServiceDto:
         """Update user service preferences"""
-        result = await db.execute(select(Profile).where(Profile.user_id == user_id))
-        profile = result.scalar_one_or_none()
+        profile = db.query(Profile).filter(Profile.user_id == user_id).first()
         
         if not profile:
             raise ValueError(f"Profile not found for user ID: {user_id}")
         
         profile.preferred_service_type = service_dto.preferred_service_type
-        await db.commit()
+        db.commit()
         
         return ProfileServiceDto(preferred_service_type=profile.preferred_service_type)
     
-    async def update_menstrual_data(self, db: AsyncSession, user_id: int, update_dto: MenstrualTrackingDto) -> MenstrualTrackingDto:
+    def update_menstrual_data(self, db: Session, user_id: int, update_dto: MenstrualTrackingDto) -> MenstrualTrackingDto:
         """Update menstrual tracking data"""
-        result = await db.execute(select(Profile).where(Profile.user_id == user_id))
-        profile = result.scalar_one_or_none()
+        profile = db.query(Profile).filter(Profile.user_id == user_id).first()
         
         if not profile:
             raise ValueError(f"Profile not found for user ID: {user_id}")
@@ -218,13 +207,12 @@ class AppService:
         if update_dto.cycle_length:
             profile.cycle_length = update_dto.cycle_length
         
-        await db.commit()
+        db.commit()
         return update_dto
     
-    async def predict_next_cycle(self, db: AsyncSession, user_id: int) -> CyclePredictionDto:
+    def predict_next_cycle(self, db: Session, user_id: int) -> CyclePredictionDto:
         """Predict next menstrual cycle"""
-        result = await db.execute(select(Profile).where(Profile.user_id == user_id))
-        profile = result.scalar_one_or_none()
+        profile = db.query(Profile).filter(Profile.user_id == user_id).first()
         
         if not profile:
             raise ValueError(f"Profile not found for user ID: {user_id}")
@@ -254,10 +242,10 @@ class AppService:
             next_fertile_window_end_date=next_ovulation_date + timedelta(days=1)
         )
     
-    async def get_cycle_prediction_as_text(self, db: AsyncSession, user_id: int) -> str:
+    def get_cycle_prediction_as_text(self, db: Session, user_id: int) -> str:
         """Get cycle prediction as formatted text"""
         try:
-            prediction = await self.predict_next_cycle(db, user_id)
+            prediction = self.predict_next_cycle(db, user_id)
             
             return (
                 f"The user's next period is predicted to start on {prediction.next_period_start_date.strftime('%B %d, %Y')} "
@@ -269,33 +257,31 @@ class AppService:
         except Exception:
             return "The user has not provided enough information to generate a cycle prediction. Please ask them to complete their menstrual cycle setup."
     
-    async def find_profile_by_user_id(self, db: AsyncSession, user_id: int) -> Profile:
+    def find_profile_by_user_id(self, db: Session, user_id: int) -> Profile:
         """Find profile by user ID"""
-        result = await db.execute(select(Profile).where(Profile.user_id == user_id))
-        profile = result.scalar_one_or_none()
+        profile = db.query(Profile).filter(Profile.user_id == user_id).first()
         
         if not profile:
             raise ValueError(f"Profile not found for user ID: {user_id}")
         
         return profile
     
-    async def update_user_language(self, db: AsyncSession, user_id: int, language_code: str) -> Profile:
+    def update_user_language(self, db: Session, user_id: int, language_code: str) -> Profile:
         """Update user language preference"""
-        profile = await self.find_profile_by_user_id(db, user_id)
+        profile = self.find_profile_by_user_id(db, user_id)
         profile.language_code = language_code
-        await db.commit()
+        db.commit()
         return profile
     
-    async def save_profile(self, db: AsyncSession, profile: Profile) -> Profile:
+    def save_profile(self, db: Session, profile: Profile) -> Profile:
         """Save profile"""
-        await db.commit()
-        await db.refresh(profile)
+        db.commit()
+        db.refresh(profile)
         return profile
     
-    async def get_partner_data(self, db: AsyncSession, user_id: int) -> PartnerDataDto:
+    def get_partner_data(self, db: Session, user_id: int) -> PartnerDataDto:
         """Get partner data for the logged-in partner"""
-        partner_result = await db.execute(select(Profile).where(Profile.user_id == user_id))
-        partner_profile = partner_result.scalar_one_or_none()
+        partner_profile = db.query(Profile).filter(Profile.user_id == user_id).first()
         
         if not partner_profile or partner_profile.user_type != UserType.PARTNER:
             raise ValueError(f"No partner profile found for user ID: {user_id}")
@@ -305,25 +291,22 @@ class AppService:
             raise ValueError("Partner profile does not have a referral code.")
         
         # Find the user profile with this referral code
-        user_result = await db.execute(
-            select(Profile).where(Profile.referral_code == referral_code)
-        )
-        user_profile = user_result.scalar_one_or_none()
+        user_profile = db.query(Profile).filter(Profile.referral_code == referral_code).first()
         
         if not user_profile:
             raise ValueError(f"No user profile found for referral code: {referral_code}")
         
         # Get cycle prediction for the linked user
-        cycle_prediction = await self.predict_next_cycle(db, user_profile.user_id)
+        cycle_prediction = self.predict_next_cycle(db, user_profile.user_id)
         
         return PartnerDataDto(
             name=user_profile.name,
             cycle_prediction=cycle_prediction
         )
     
-    async def process_mcq_risk_assessment(self, db: AsyncSession, user_id: int, answers: Dict[str, str]) -> str:
+    def process_mcq_risk_assessment(self, db: Session, user_id: int, answers: Dict[str, str]) -> str:
         """Process MCQ risk assessment and return risk level"""
-        profile = await self.find_profile_by_user_id(db, user_id)
+        profile = self.find_profile_by_user_id(db, user_id)
         
         score = self._calculate_risk_score_from_mcq(answers)
         
@@ -337,7 +320,7 @@ class AppService:
         profile.risk_assessment_mcq_data = answers
         profile.breast_cancer_risk_level = risk_level
         
-        await db.commit()
+        db.commit()
         return risk_level
     
     def _calculate_risk_score_from_mcq(self, answers: Dict[str, str]) -> int:
@@ -384,4 +367,4 @@ class AppService:
         if answers.get("age_group") == "AGE_50_PLUS":
             score += 4
         
-        return max(0, score)  # Ensure score doesn't go below 0 
+        return max(0, score)  # Ensure score doesn't go below 0
