@@ -5,7 +5,7 @@ Based on Java implementation
 
 from typing import Dict, Any, Optional
 from datetime import datetime, date, timedelta
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlalchemy import select
 from db.models.user import User
 from db.models.profile import Profile, UserType, UserServiceType
@@ -27,14 +27,13 @@ class AppService:
         self.email_service = EmailService()
         self.referral_service = ReferralCodeService()
     
-    async def register_user(self, db: AsyncSession, request: SignUpRequest) -> User:
+    def register_user(self, db: Session, request: SignUpRequest) -> User:
         """
         Register a new user (simplified like Java implementation)
         Only requires email and password
         """
         # Check if user already exists
-        result = await db.execute(select(User).where(User.email == request.email))
-        existing_user = result.scalar_one_or_none()
+        existing_user = db.query(User).filter(User.email == request.email).first()
         
         if existing_user:
             raise ValueError("Email already in use")
@@ -47,8 +46,8 @@ class AppService:
         )
         
         db.add(new_user)
-        await db.commit()
-        await db.refresh(new_user)
+        db.commit()
+        db.refresh(new_user)
         
         # TODO: Add OTP email sending back after basic signup works
         # otp = self.otp_service.generate_otp()
