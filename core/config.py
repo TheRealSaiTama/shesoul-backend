@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = Field(
-        default="postgresql://postgres.bwksvtzocrpugdpyztbg:One2%23fourfive@aws-0-ap-south-1.pooler.supabase.com:6543/postgres",
+        default="postgresql+asyncpg://postgres.bwksvtzocrpugdpyztbg:One2%23fourfive@aws-0-ap-south-1.pooler.supabase.com:6543/postgres",
         env="DATABASE_URL"
     )
     
