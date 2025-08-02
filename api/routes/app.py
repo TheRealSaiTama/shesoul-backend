@@ -1,15 +1,16 @@
 """
 Main application routes for She&Soul FastAPI application
+Based on Java implementation for production readiness
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Dict, Any
-from datetime import date, timedelta
 
 from core.database import get_db
-from core.security import get_current_user, get_password_hash, create_access_token
+from core.security import get_current_user, create_access_token
 from db.models.user import User
 from db.models.profile import Profile, UserType, UserServiceType
 from api.schemas.auth import SignUpRequest, SignUpResponse, LoginRequest, LoginResponse, VerifyEmailRequest, ResendOtpRequest
@@ -18,458 +19,291 @@ from api.schemas.profile import (
     PartnerDataDto, CyclePredictionDto
 )
 from services.app_service import AppService
-from services.email_service import EmailService
 
 router = APIRouter()
+app_service = AppService()
 
 @router.post("/signup", response_model=SignUpResponse)
-async def signup_user(
+def signup_user(
     signup_request: SignUpRequest,
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
     """
-    Register a new user
+    Register a new user (simplified like Java implementation)
+    Only requires email and password, profile creation is separate
     """
     try:
-        # Check if user already exists
-        result = await db.execute(select(User).where(User.email == signup_request.email))
-        existing_user = result.scalar_one_or_none()
-        
-        if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="User with this email already exists"
-            )
-        
-        # Create new user
-        hashed_password = get_password_hash(signup_request.password)
-        user = User(
-            email=signup_request.email,
-            password=hashed_password,
-            is_email_verified=False
-        )
-        
-        db.add(user)
-        await db.flush()  # Get the user ID
-        
-        # Create profile
-        profile = Profile(
-            user_id=user.id,
-            name=signup_request.name,
-            nick_name=signup_request.nick_name,
-            user_type=UserType(signup_request.user_type),
-            age=signup_request.age,
-            height=signup_request.height,
-            weight=signup_request.weight,
-            referral_code=signup_request.referral_code,
-            referred_code=signup_request.referred_code
-        )
-        
-        db.add(profile)
-        await db.commit()
+        user = app_service.register_user(db, signup_request)
         
         # Create JWT token
         access_token = create_access_token(data={"sub": user.email})
         
         return SignUpResponse(
-            message="User registered successfully!",
+            message="User registered successfully! Please verify your email.",
             user_id=user.id,
             jwt=access_token
         )
         
-    except HTTPException:
-        raise
+    except ValueError as e:
+        if "already in use" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
     except Exception as e:
-        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Registration failed: {str(e)}"
         )
 
-@router.post("/login", response_model=LoginResponse)
-async def login_user(
-    login_request: LoginRequest,
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Login user
-    """
-    try:
-        # Find user by email
-        result = await db.execute(select(User).where(User.email == login_request.email))
-        user = result.scalar_one_or_none()
-        
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
-            )
-        
-        # Verify password
-        from core.security import verify_password
-        if not verify_password(login_request.password, user.password):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
-            )
-        
-        return LoginResponse(
-            message="Login successful!",
-            user_id=user.id,
-            email=user.email
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Login failed: {str(e)}"
-        )
-
 @router.post("/verify-email")
-async def verify_email(
+def verify_email(
     request: VerifyEmailRequest,
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
     """
     Verify user email with OTP
     """
     try:
-        # This would be implemented with OTP verification logic
-        # For now, just mark user as verified
-        result = await db.execute(select(User).where(User.email == request.email))
-        user = result.scalar_one_or_none()
-        
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="User not found"
-            )
-        
-        user.is_email_verified = True
-        await db.commit()
-        
+        app_service.verify_email(db, request.email, request.otp)
         return {"message": "Email verified successfully!"}
         
-    except HTTPException:
-        raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
     except Exception as e:
-        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Email verification failed: {str(e)}"
         )
 
 @router.post("/resend-otp")
-async def resend_otp(
+def resend_otp(
     request: ResendOtpRequest,
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
     """
     Resend OTP to user email
     """
     try:
-        # This would be implemented with OTP generation and email sending
-        # For now, just return success
+        app_service.resend_otp(db, request.email)
         return {"message": "OTP resent successfully!"}
         
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"OTP resend failed: {str(e)}"
         )
 
-@router.post("/profile", response_model=ProfileResponse)
-async def setup_profile(
-    profile_request: ProfileRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+@router.post("/login", response_model=LoginResponse)
+def login_user(
+    login_request: LoginRequest,
+    db: Session = Depends(get_db)
 ):
     """
-    Setup or update user profile
+    Login user and return JWT token
     """
     try:
-        # Get existing profile or create new one
-        result = await db.execute(select(Profile).where(Profile.user_id == current_user.id))
-        profile = result.scalar_one_or_none()
+        user = app_service.login_user(db, login_request.email, login_request.password)
         
-        if profile:
-            # Update existing profile
-            for field, value in profile_request.dict(exclude_unset=True).items():
-                setattr(profile, field, value)
-        else:
-            # Create new profile
-            profile = Profile(
-                user_id=current_user.id,
-                **profile_request.dict()
-            )
-            db.add(profile)
+        # Create JWT token
+        access_token = create_access_token(data={"sub": user.email})
         
-        await db.commit()
-        await db.refresh(profile)
-        
-        return ProfileResponse(
-            id=profile.id,
-            name=profile.name,
-            nick_name=profile.nick_name,
-            user_type=profile.user_type,
-            age=profile.age,
-            height=profile.height,
-            weight=profile.weight,
-            referral_code=profile.referral_code,
-            referred_code=profile.referred_code,
-            preferred_service_type=profile.preferred_service_type,
-            period_length=profile.period_length,
-            cycle_length=profile.cycle_length,
-            last_period_start_date=profile.last_period_start_date,
-            last_period_end_date=profile.last_period_end_date,
-            device_token=profile.device_token,
-            language_code=profile.language_code,
-            risk_assessment_mcq_data=profile.risk_assessment_mcq_data,
-            breast_cancer_risk_level=profile.breast_cancer_risk_level,
-            medical_summary=profile.medical_summary
+        return LoginResponse(
+            message="Login successful!",
+            user_id=user.id,
+            email=user.email,
+            jwt=access_token
         )
         
-    except HTTPException:
-        raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e)
+        )
     except Exception as e:
-        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Profile setup failed: {str(e)}"
+            detail=f"Login failed: {str(e)}"
         )
 
-@router.put("/services")
-async def update_user_services(
-    update_services: ProfileServiceDto,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+@router.post("/profile", response_model=ProfileResponse)
+def create_profile(
+    profile_request: ProfileRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Create user profile
+    """
+    try:
+        return app_service.create_profile(db, profile_request, current_user)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Profile creation failed: {str(e)}"
+        )
+
+@router.get("/profile", response_model=ProfileResponse)
+def get_profile(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get user profile
+    """
+    try:
+        profile = app_service.find_profile_by_user_id(db, current_user.id)
+        return ProfileResponse.from_orm(profile)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get profile: {str(e)}"
+        )
+
+@router.put("/profile/service", response_model=ProfileServiceDto)
+def update_service(
+    service_dto: ProfileServiceDto,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Update user service preferences
     """
     try:
-        result = await db.execute(select(Profile).where(Profile.user_id == current_user.id))
-        profile = result.scalar_one_or_none()
-        
-        if not profile:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Profile not found"
-            )
-        
-        profile.preferred_service_type = update_services.preferred_service_type
-        await db.commit()
-        
-        return {"message": "Services updated successfully!"}
-        
-    except HTTPException:
-        raise
+        return app_service.update_user_service(db, current_user.id, service_dto)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
     except Exception as e:
-        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Service update failed: {str(e)}"
+            detail=f"Failed to update service: {str(e)}"
         )
 
-@router.put("/menstrual-data")
-async def update_menstrual_data(
-    menstrual_data: MenstrualTrackingDto,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+@router.put("/profile/menstrual-data", response_model=MenstrualTrackingDto)
+def update_menstrual_data(
+    update_dto: MenstrualTrackingDto,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Update menstrual tracking data
     """
     try:
-        result = await db.execute(select(Profile).where(Profile.user_id == current_user.id))
-        profile = result.scalar_one_or_none()
-        
-        if not profile:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Profile not found"
-            )
-        
-        # Update menstrual data
-        for field, value in menstrual_data.dict(exclude_unset=True).items():
-            setattr(profile, field, value)
-        
-        await db.commit()
-        
-        return {"message": "Menstrual data updated successfully!"}
-        
-    except HTTPException:
-        raise
+        return app_service.update_menstrual_data(db, current_user.id, update_dto)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
     except Exception as e:
-        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Menstrual data update failed: {str(e)}"
+            detail=f"Failed to update menstrual data: {str(e)}"
         )
 
-@router.put("/language")
-async def set_user_language(
-    payload: Dict[str, str],
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+@router.get("/cycle-prediction", response_model=CyclePredictionDto)
+def get_cycle_prediction(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Set user language preference
+    Get next cycle prediction
     """
     try:
-        language_code = payload.get("languageCode")
-        if not language_code or not language_code.strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="languageCode field is required."
-            )
-        
-        result = await db.execute(select(Profile).where(Profile.user_id == current_user.id))
-        profile = result.scalar_one_or_none()
-        
-        if not profile:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Profile not found"
-            )
-        
-        profile.language_code = language_code
-        await db.commit()
-        
-        return {"message": f"User language updated successfully to {language_code}"}
-        
-    except HTTPException:
-        raise
+        return app_service.predict_next_cycle(db, current_user.id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
     except Exception as e:
-        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Language update failed: {str(e)}"
+            detail=f"Failed to get cycle prediction: {str(e)}"
         )
 
-@router.get("/partner", response_model=PartnerDataDto)
-async def get_partner_data(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+@router.get("/cycle-prediction-text", response_model=str)
+def get_cycle_prediction_text(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get cycle prediction as formatted text
+    """
+    try:
+        return app_service.get_cycle_prediction_as_text(db, current_user.id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get cycle prediction text: {str(e)}"
+        )
+
+@router.get("/partner-data", response_model=PartnerDataDto)
+def get_partner_data(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get partner data for the logged-in partner
     """
     try:
-        # This would need to be implemented based on the partner linking logic
-        # For now, return basic partner data
-        result = await db.execute(select(Profile).where(Profile.user_id == current_user.id))
-        profile = result.scalar_one_or_none()
-        
-        if not profile:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Profile not found"
-            )
-        
-        return PartnerDataDto(
-            user_id=current_user.id,
-            name=profile.name,
-            nick_name=profile.nick_name,
-            age=profile.age,
-            period_length=profile.period_length,
-            cycle_length=profile.cycle_length,
-            last_period_start_date=profile.last_period_start_date,
-            last_period_end_date=profile.last_period_end_date
+        return app_service.get_partner_data(db, current_user.id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
         )
-        
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get partner data: {str(e)}"
         )
 
-@router.get("/next-period", response_model=CyclePredictionDto)
-async def get_next_period(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Get next period prediction
-    """
-    try:
-        result = await db.execute(select(Profile).where(Profile.user_id == current_user.id))
-        profile = result.scalar_one_or_none()
-        
-        if not profile or not profile.last_period_start_date or not profile.cycle_length:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Insufficient data for prediction"
-            )
-        
-        # Calculate next period date
-        next_period_date = profile.last_period_start_date + timedelta(days=profile.cycle_length)
-        ovulation_date = next_period_date - timedelta(days=14)
-        fertile_window_start = ovulation_date - timedelta(days=5)
-        fertile_window_end = ovulation_date + timedelta(days=1)
-        
-        return CyclePredictionDto(
-            next_period_date=next_period_date,
-            fertile_window_start=fertile_window_start,
-            fertile_window_end=fertile_window_end,
-            ovulation_date=ovulation_date
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to predict next period: {str(e)}"
-        )
-
-@router.post("/breast-health")
-async def log_breast_cancer_self_exam(
-    raw_symptoms: Dict[str, str],
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Log breast cancer self-examination symptoms
-    """
-    try:
-        # This would be implemented with breast cancer exam logging
-        # For now, just return success
-        return {"message": "Detailed self-exam log saved successfully."}
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to log self-exam: {str(e)}"
-        )
-
-@router.post("/mcq-assessment")
-async def submit_mcq_risk_assessment(
+@router.post("/mcq-risk-assessment", response_model=str)
+def process_mcq_risk_assessment(
     answers: Dict[str, str],
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Submit MCQ risk assessment
+    Process MCQ risk assessment and return risk level
     """
     try:
-        # This would be implemented with risk assessment logic
-        # For now, just return a default risk level
-        risk_level = "LOW"  # This would be calculated based on answers
-        
-        return {
-            "message": "Assessment completed successfully.",
-            "riskLevel": risk_level
-        }
-        
+        return app_service.process_mcq_risk_assessment(db, current_user.id, answers)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Assessment failed: {str(e)}"
+            detail=f"Failed to process MCQ risk assessment: {str(e)}"
         )
 
 @router.put("/profile/basic")
@@ -544,34 +378,3 @@ async def update_profile_basic(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Profile update failed: {str(e)}"
         )
-
-@router.post("/menstrual-assistant")
-async def menstrual_assistant_request(
-    request: Dict[str, str],
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Get response from menstrual assistant
-    """
-    try:
-        user_message = request.get("message")
-        if not user_message:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Message is required"
-            )
-        
-        # This would be implemented with AI assistant logic
-        # For now, return a simple response
-        response = f"Thank you for your message: {user_message}. I'm here to help with your menstrual health questions."
-        
-        return {"response": response}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Assistant request failed: {str(e)}"
-        ) 
