@@ -90,7 +90,8 @@ fun SignUpScreen(
         signupResult?.let { result ->
             result.fold(
                 onSuccess = { response ->
-                    Log.d("Signup", "Manual signup successful: ${response.message}")
+                    // LoginResponse does not provide a message field. Use a generic success log and toast.
+                    Log.d("Signup", "Manual signup successful")
                     Toast.makeText(context, "Signup successful! Please check your email for OTP.", Toast.LENGTH_LONG).show()
                     // For manual signup, navigate to OTP verification with the email
                     onNavigateToOtpVerification(email)

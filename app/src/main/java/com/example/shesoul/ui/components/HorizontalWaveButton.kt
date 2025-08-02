@@ -88,7 +88,8 @@ fun HorizontalWaveButton(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(height)
+            // Enforce a minimum height to avoid compression on small screens while allowing expansion if needed
+            .height(height.coerceAtLeast(40.dp))
             .clip(RoundedCornerShape(cornerRadius))
             .background(
                 if (useVerticalGradient) {
@@ -153,7 +154,9 @@ fun HorizontalWaveButton(
                 fontFamily = PoppinsFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                // Ensure text doesn't clip on very small or very large accessibility font sizes
+                maxLines = 1
             )
         }
     }

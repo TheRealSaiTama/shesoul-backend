@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "514708419997",
+    "project_id": "sheandsoul-78496",
+    "storage_bucket": "sheandsoul-78496.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:514708419997:android:62a1d917fd8125005f6b74",
+        "android_client_info": {
+          "package_name": "com.example.shesoul"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "514708419997-nk1e3h2q7qoju6s3ng6db0d82f8ek2sr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.shesoul",
+            "certificate_hash": "3756b5d7d12a9719e689c1c848376208eda1527f"
+          }
+        },
+        {
+          "client_id": "514708419997-vcasulnfnbjpgr2h6shgrb3952gup0rj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2MnkzUhtBvJESiBo3D05iCjMD6BKEmtE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "514708419997-vcasulnfnbjpgr2h6shgrb3952gup0rj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

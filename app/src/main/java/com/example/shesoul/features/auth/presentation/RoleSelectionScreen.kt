@@ -57,7 +57,14 @@ fun RoleSelectionScreen(
                     onContinue(selectedRole)
                 },
                 onFailure = { error ->
-                    Toast.makeText(context, "Error: ${error.message}", Toast.LENGTH_LONG).show()
+                    // If backend says user already has a profile, treat as success and continue onboarding
+                    val msg = error.message?.lowercase().orEmpty()
+                    if (msg.contains("already has a profile") || msg.contains("profile already exists")) {
+                        Toast.makeText(context, "Profile already exists. Continuing…", Toast.LENGTH_SHORT).show()
+                        onContinue(selectedRole)
+                    } else {
+                        Toast.makeText(context, "Error: ${error.message}", Toast.LENGTH_LONG).show()
+                    }
                 }
             )
         }
@@ -67,88 +74,97 @@ fun RoleSelectionScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
-                .padding(top = 56.dp, bottom = 8.dp),
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            val brandText = buildAnnotatedString {
-                withStyle(style = SpanStyle(color = Color(0xFF9092FF))) {
-                    append("She")
-                }
-                withStyle(style = SpanStyle(color = Color.Black)) {
-                    append("&")
-                }
-                withStyle(style = SpanStyle(color = Color(0xFF9092FF))) {
-                    append("Soul")
-                }
-            }
-
-            Text(
-                text = brandText,
-                fontSize = 32.sp,
-                fontFamily = PlayfairDisplayFamily,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Choose your role",
-                fontFamily = NunitoFamily,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 20.sp,
-                color = Color(0xFF2D2D2D),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
+            // Scrollable content area
             Column(
-                modifier = Modifier.width(412.dp),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Top
             ) {
-                RoleCard(
-                    role = UserType.USER,
-                    label = "User",
-                    imageRes = R.drawable.women,
-                    isSelected = selectedRole == UserType.USER,
-                    onClick = { selectedRole = UserType.USER },
-                    isTopCard = true
+                Spacer(modifier = Modifier.height(56.dp))
+
+                val brandText = buildAnnotatedString {
+                    withStyle(style = SpanStyle(color = Color(0xFF9092FF))) {
+                        append("She")
+                    }
+                    withStyle(style = SpanStyle(color = Color.Black)) {
+                        append("&")
+                    }
+                    withStyle(style = SpanStyle(color = Color(0xFF9092FF))) {
+                        append("Soul")
+                    }
+                }
+
+                Text(
+                    text = brandText,
+                    fontSize = 32.sp,
+                    fontFamily = PlayfairDisplayFamily,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
                 )
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    Color.Black.copy(alpha = 0.1f),
-                                    Color.Black.copy(alpha = 0.2f),
-                                    Color.Black.copy(alpha = 0.1f),
-                                    Color.Transparent
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Choose your role",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 20.sp,
+                    color = Color(0xFF2D2D2D),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(), // Use flexible width
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    RoleCard(
+                        role = UserType.USER,
+                        label = "User",
+                        imageRes = R.drawable.women,
+                        isSelected = selectedRole == UserType.USER,
+                        onClick = { selectedRole = UserType.USER },
+                        isTopCard = true
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.1f),
+                                        Color.Black.copy(alpha = 0.2f),
+                                        Color.Black.copy(alpha = 0.1f),
+                                        Color.Transparent
+                                    )
                                 )
                             )
-                        )
-                )
+                    )
 
-                RoleCard(
-                    role = UserType.PARTNER,
-                    label = "Partner",
-                    imageRes = R.drawable.male,
-                    isSelected = selectedRole == UserType.PARTNER,
-                    onClick = { selectedRole = UserType.PARTNER },
-                    isTopCard = false
-                )
+                    RoleCard(
+                        role = UserType.PARTNER,
+                        label = "Partner",
+                        imageRes = R.drawable.male,
+                        isSelected = selectedRole == UserType.PARTNER,
+                        onClick = { selectedRole = UserType.PARTNER },
+                        isTopCard = false
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
+            // Anchored button at the bottom
+            // Ensure consistent height and shape across devices using our shared HorizontalWaveButton defaults
             HorizontalWaveButton(
                 onClick = {
                     authViewModel.createProfile(selectedRole)
@@ -156,10 +172,14 @@ fun RoleSelectionScreen(
                 text = "Continue",
                 startColor = Color(0xFFE0BBFF),
                 endColor = Color(0xFF9092FF),
+                // Use a consistent min height and shape: 44.dp and 10.dp, matching other screens
+                // Avoid wrapping the button in a parent .height that can distort its intrinsic height
                 modifier = Modifier
-                    .width(412.dp)
-                    .height(50.dp),
-                cornerRadius = 12.dp
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                height = 44.dp,
+                cornerRadius = 10.dp,
+                useVerticalGradient = true
             )
         }
     }

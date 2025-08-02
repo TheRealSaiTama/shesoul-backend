@@ -151,4 +151,7 @@ logs/
 
 # Temporary files
 tmp/
-temp/ 
+temp/
+
+# Gradle wrapper (too large for GitHub)
+gradle-wrapper.zip 

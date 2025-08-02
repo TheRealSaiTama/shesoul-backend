@@ -1,17 +1,33 @@
 package com.example.shesoul.features.auth.presentation
 
+import android.app.Application
 import android.content.Intent
 import androidx.lifecycle.*
-import com.example.shesoul.features.auth.presentation.SignUpRequest
-import com.example.shesoul.features.auth.presentation.SignUpResponse
-import com.example.shesoul.data.remote.RetrofitInstance
+import com.example.shesoul.data.auth.TokenManager
+import com.example.shesoul.data.remote.RetrofitClient
 import com.example.shesoul.data.remote.ResendOtpRequest
 import com.example.shesoul.data.remote.VerifyEmailRequest
+import com.example.shesoul.data.remote.ApiService
+import com.example.shesoul.data.remote.ProfilePatchRequest
 import kotlinx.coroutines.launch
 
-class AuthViewModel : ViewModel() {
-    private val _signupResponse = MutableLiveData<Result<SignUpResponse>>()
-    val signupResponse: LiveData<Result<SignUpResponse>> = _signupResponse
+sealed class SaveState {
+    data object Idle : SaveState()
+    data object Loading : SaveState()
+    data class Success(val message: String? = null) : SaveState()
+    data class Error(val message: String?) : SaveState()
+}
+
+class AuthViewModel(application: Application) : AndroidViewModel(application) {
+    private val tokenManager = TokenManager(getApplication())
+    private val apiService = RetrofitClient.create(getApplication())
+
+    private val _signupResponse = MutableLiveData<Result<LoginResponse>>()
+    val signupResponse: LiveData<Result<LoginResponse>> = _signupResponse
+
+    // Save state for async profile updates from UI steps (e.g., age, weight, height)
+    private val _saveState = MutableLiveData<SaveState>(SaveState.Idle)
+    val saveState: LiveData<SaveState> = _saveState
 
     private val _googleSignInResult = MutableLiveData<GoogleSignInResult>()
     val googleSignInResult: LiveData<GoogleSignInResult> = _googleSignInResult
@@ -31,7 +47,6 @@ class AuthViewModel : ViewModel() {
     private val _isLoggedIn = MutableLiveData<Boolean>()
     val isLoggedIn: LiveData<Boolean> = _isLoggedIn
 
-    private var authToken: String? = null
     private var currentUser: LoginResponse? = null
 
     // Temporary storage for profile data
@@ -42,7 +57,7 @@ class AuthViewModel : ViewModel() {
     private var tempWeight: Double? = null
     private var tempHeight: Double? = null
 
-    fun getAuthToken(): String? = authToken
+    fun getAuthToken(): String? = tokenManager.getToken()
 
     fun getCurrentUser(): LoginResponse? = currentUser
 
@@ -58,6 +73,39 @@ class AuthViewModel : ViewModel() {
         tempAge = age
     }
 
+    /**
+     * Save only age immediately to backend via PUT /api/profile/basic and update local temp state.
+     * Emits SaveState for UI to react (Loading -> Success/Error).
+     */
+    fun saveAge(age: Int) {
+        viewModelScope.launch {
+            try {
+                _saveState.value = SaveState.Loading
+                // Update local cache
+                setUserAge(age)
+
+                // Compose minimal patch request for basic profile update
+                val patch = ProfilePatchRequest(
+                    age = age,
+                    height = null,
+                    weight = null,
+                    name = null,
+                    nick_name = null
+                )
+
+                val response = apiService.patchProfile(patch)
+                if (response.isSuccessful) {
+                    _saveState.value = SaveState.Success("Age saved")
+                } else {
+                    val msg = response.errorBody()?.string() ?: "Failed to save age"
+                    _saveState.value = SaveState.Error(msg)
+                }
+            } catch (e: Exception) {
+                _saveState.value = SaveState.Error(e.message)
+            }
+        }
+    }
+
     fun setUserWeight(weight: Double?) {
         tempWeight = weight
     }
@@ -69,12 +117,15 @@ class AuthViewModel : ViewModel() {
     fun login(loginRequest: LoginRequest) {
         viewModelScope.launch {
             try {
-                val response = RetrofitInstance.api.login(loginRequest)
+                val response = apiService.login(loginRequest)
                 if (response.isSuccessful) {
                     val loginResponse = response.body()!!
-                    authToken = loginResponse.jwt
+                    if (loginResponse.accessToken != null) {
+                        tokenManager.saveToken(loginResponse.accessToken)
+                    } else {
+                        throw Exception("Access token is null")
+                    }   
                     currentUser = loginResponse
-                    RetrofitInstance.setAuthToken(loginResponse.jwt)
                     _isLoggedIn.value = true
                     _loginResult.value = Result.success(loginResponse)
                 } else {
@@ -88,9 +139,8 @@ class AuthViewModel : ViewModel() {
     }
 
     fun logout() {
-        authToken = null
+        tokenManager.clearToken()
         currentUser = null
-        RetrofitInstance.setAuthToken(null)
         _isLoggedIn.value = false
     }
 
@@ -98,19 +148,19 @@ class AuthViewModel : ViewModel() {
         tempUserType = userType
         viewModelScope.launch {
             try {
+                val safeName = (tempName ?: "").ifBlank { "Anonymous" }
                 val profileRequest = ProfileRequest(
-                    userId = currentUser?.userId ?: 1L,
-                    name = tempName ?: "",
+                    name = safeName,
                     nickname = tempNickname,
                     userType = tempUserType ?: UserType.USER,
-                    preferredLanguage = "en",
                     age = tempAge,
                     weight = tempWeight,
                     height = tempHeight,
-                    preferredServiceType = if (tempUserType == UserType.PARTNER) UserServiceType.PARTNER_USE else UserServiceType.SELF_USE,
+                    // Keep null to satisfy server schema unless user explicitly selects a service later
+                    preferredServiceType = null,
                     referredByCode = null
                 )
-                val response = RetrofitInstance.api.createProfile(profileRequest)
+                val response = apiService.createProfile(profileRequest)
                 if (response.isSuccessful) {
                     _profileCreationResult.value = Result.success("Profile created successfully")
                 } else {
@@ -127,7 +177,7 @@ class AuthViewModel : ViewModel() {
             try {
                 println("Testing backend connection...")
                 val testRequest = SignUpRequest("test@example.com", "testpassword123")
-                val response = RetrofitInstance.api.signup(testRequest)
+                val response = apiService.signup(testRequest)
                 println("Test response code: ${response.code()}")
                 println("Test response body: ${response.body()}")
                 println("Test error body: ${response.errorBody()?.string()}")
@@ -142,13 +192,20 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 println("Attempting signup for email: ${request.email}")
-                val response = RetrofitInstance.api.signup(request)
+                val response = apiService.signup(request)
                 println("Signup response code: ${response.code()}")
                 println("Signup response body: ${response.body()}")
                 println("Signup error body: ${response.errorBody()?.string()}")
                 
                 if (response.isSuccessful) {
-                    _signupResponse.value = Result.success(response.body()!!)
+                    val signupResponse = response.body()
+                    val token = signupResponse?.accessToken
+                    if (token != null) {
+                        tokenManager.saveToken(token)
+                    } else {
+                        throw Exception("Signup access token is null")
+                    }
+                    _signupResponse.value = Result.success(signupResponse!!)
                     sendOtpToBackend(request.email)
                 } else {
                     val errorBody = response.errorBody()?.string() ?: "Signup failed with code: ${response.code()}"
@@ -175,7 +232,7 @@ class AuthViewModel : ViewModel() {
             try {
                 println("Sending OTP to email: $email")
                 val request = ResendOtpRequest(email)
-                val response = RetrofitInstance.api.sendOtp(request)
+                val response = apiService.sendOtp(request)
                 if (response.isSuccessful) {
                     println("OTP sent successfully to $email")
                     _otpSendResult.value = Result.success("OTP sent to $email")
@@ -195,7 +252,7 @@ class AuthViewModel : ViewModel() {
             try {
                 println("Verifying OTP: $otp for email: $email")
                 val request = VerifyEmailRequest(email, otp)
-                val response = RetrofitInstance.api.verifyOtp(request)
+                val response = apiService.verifyOtp(request)
                 if (response.isSuccessful) {
                     println("OTP verification successful")
                     _otpVerificationResult.value = Result.success("OTP verified successfully")

@@ -6,10 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,6 +27,12 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.shesoul.R
 import com.example.shesoul.ui.components.HorizontalWaveButton
 import com.example.shesoul.ui.theme.PlayfairDisplayFamily
@@ -43,11 +45,35 @@ enum class ExperienceType {
 
 @Composable
 fun ExperienceSelectionScreen(
-    onExperienceSelected: (ExperienceType) -> Unit = {}
+    onExperienceSelected: (ExperienceType) -> Unit = {},
+    authViewModel: AuthViewModel = viewModel()
 ) {
     var selectedExperience by remember { mutableStateOf(ExperienceType.GENERAL) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    var inlineError by remember { mutableStateOf<String?>(null) }
+    val saveState = authViewModel.saveState.observeAsState(SaveState.Idle)
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
+    LaunchedEffect(saveState.value) {
+        when (val state = saveState.value) {
+            is SaveState.Success -> {
+                inlineError = null
+                onExperienceSelected(selectedExperience)
+            }
+            is SaveState.Error -> {
+                inlineError = state.message
+                snackbarHostState.showSnackbar(state.message ?: "Couldn't save experience")
+            }
+            else -> {}
+        }
+    }
+
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(snackbarData = data)
+            }
+        }
+    ) { _ ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

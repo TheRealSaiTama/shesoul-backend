@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,7 +35,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
@@ -42,6 +45,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.shesoul.ui.components.HorizontalWaveButton
 import com.example.shesoul.ui.theme.PlayfairDisplayFamily
@@ -54,82 +58,121 @@ fun AgeSelectionScreen(
     authViewModel: AuthViewModel = viewModel()
 ) {
     var selectedAge by remember { mutableStateOf(27) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    var inlineError by remember { mutableStateOf<String?>(null) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
+    // Observe SaveState via LiveData
+    val saveState = authViewModel.saveState.observeAsState(initial = SaveState.Idle)
+
+    LaunchedEffect(saveState.value) {
+        when (val state = saveState.value) {
+            is SaveState.Success -> {
+                inlineError = null
+                onContinue()
+            }
+            is SaveState.Error -> {
+                inlineError = state.message
+                snackbarHostState.showSnackbar(state.message ?: "Couldn't save age")
+            }
+            else -> { /* Idle/Loading - no-op */ }
+        }
+    }
+
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(snackbarData = data)
+            }
+        }
+    ) { _ ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White)
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(WindowInsets.statusBars.asPaddingValues())
-                    .padding(top = 16.dp),
+                modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                val brandText = buildAnnotatedString {
-                    withStyle(style = SpanStyle(color = Color(0xFF9092FF))) { append("She") }
-                    withStyle(style = SpanStyle(color = Color.Black)) { append("&") }
-                    withStyle(style = SpanStyle(color = Color(0xFF9092FF))) { append("Soul") }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(WindowInsets.statusBars.asPaddingValues())
+                        .padding(top = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val brandText = buildAnnotatedString {
+                        withStyle(style = SpanStyle(color = Color(0xFF9092FF))) { append("She") }
+                        withStyle(style = SpanStyle(color = Color.Black)) { append("&") }
+                        withStyle(style = SpanStyle(color = Color(0xFF9092FF))) { append("Soul") }
+                    }
+
+                    Text(
+                        text = brandText,
+                        fontSize = 32.sp,
+                        fontFamily = PlayfairDisplayFamily,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center
+                    )
                 }
 
-                Text(
-                    text = brandText,
-                    fontSize = 32.sp,
-                    fontFamily = PlayfairDisplayFamily,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center
-                )
-            }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "How old are you?",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.Black.copy(alpha = 0.8f),
+                        textAlign = TextAlign.Center
+                    )
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "How old are you?",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.Black.copy(alpha = 0.8f),
-                    textAlign = TextAlign.Center
-                )
+                    Spacer(modifier = Modifier.height(32.dp))
 
-                Spacer(modifier = Modifier.height(32.dp))
+                    InfiniteAgePicker(
+                        onAgeChange = { age ->
+                            selectedAge = age
+                        }
+                    )
+                }
 
-                InfiniteAgePicker(
-                    onAgeChange = { age ->
-                        selectedAge = age
-                    }
-                )
-            }
+                // Inline helper text if error
+                if (inlineError != null) {
+                    Text(
+                        text = inlineError!!,
+                        color = Color(0xFFD32F2F),
+                        fontSize = 12.sp,
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 8.dp)
+                    )
+                }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 16.dp)
-                    .padding(WindowInsets.navigationBars.asPaddingValues()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                HorizontalWaveButton(
-                    onClick = {
-                        authViewModel.setUserAge(selectedAge)
-                        onContinue()
-                    },
-                    text = "Continue",
-                    startColor = Color(0xFFBBBDFF),
-                    endColor = Color(0xFF9092FF),
-                    modifier = Modifier.fillMaxWidth().height(44.dp),
-                    cornerRadius = 10.dp,
-                    useVerticalGradient = true
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 16.dp)
+                        .padding(WindowInsets.navigationBars.asPaddingValues()),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val isLoading = saveState.value is SaveState.Loading
+                    HorizontalWaveButton(
+                        onClick = {
+                            authViewModel.saveAge(selectedAge)
+                        },
+                        text = if (isLoading) "Saving..." else "Continue",
+                        startColor = Color(0xFFBBBDFF),
+                        endColor = Color(0xFF9092FF),
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        cornerRadius = 10.dp,
+                        useVerticalGradient = true
+                    )
+                }
             }
         }
     }

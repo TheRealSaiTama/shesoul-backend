@@ -94,7 +94,10 @@ class MainActivity : ComponentActivity() {
                             onContinue = { role ->
                                 when (role) {
                                     UserType.PARTNER -> currentScreen = Screen.PartnerWelcome
-                                    UserType.USER -> { /* TODO: Navigate to user-specific screen */ }
+                                    UserType.USER -> {
+                                        // Continue onboarding flow after RoleSelection for existing users
+                                        currentScreen = Screen.AgeSelection
+                                    }
                                 }
                             },
                             authViewModel = authViewModel

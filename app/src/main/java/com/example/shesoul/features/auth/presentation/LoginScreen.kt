@@ -61,7 +61,8 @@ fun LoginScreen(
             isLoading = false
             result.fold(
                 onSuccess = { loginResponse ->
-                    Toast.makeText(context, loginResponse.message, Toast.LENGTH_SHORT).show()
+                    // Backend does not return message in LoginResponse; show a generic success
+                    Toast.makeText(context, "Login successful", Toast.LENGTH_SHORT).show()
                     onLoginSuccess()
                 },
                 onFailure = { error ->
