@@ -41,6 +41,8 @@ class LoginResponse(BaseModel):
     message: str = Field(..., description="Success message")
     user_id: int = Field(..., description="User ID")
     email: str = Field(..., description="User email")
+    access_token: str = Field(..., description="JWT access token")
+    token_type: str = Field(default="bearer", description="Token type")
 
 class VerifyEmailResponse(BaseModel):
     """Email verification response schema"""
@@ -48,4 +50,4 @@ class VerifyEmailResponse(BaseModel):
 
 class ResendOtpResponse(BaseModel):
     """Resend OTP response schema"""
-    message: str = Field(..., description="Success message") 
+    message: str = Field(..., description="Success message")
