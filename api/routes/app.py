@@ -5,6 +5,8 @@ Based on Java implementation for production readiness
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import Dict, Any
 
 from core.database import get_db
@@ -302,4 +304,77 @@ def process_mcq_risk_assessment(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process MCQ risk assessment: {str(e)}"
+        )
+
+@router.put("/profile/basic")
+async def update_profile_basic(
+    basic_info: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update basic profile information (age, height, weight, name, nickname)
+    """
+    try:
+        result = await db.execute(select(Profile).where(Profile.user_id == current_user.id))
+        profile = result.scalar_one_or_none()
+        
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Profile not found"
+            )
+        
+        # Update only provided fields
+        if "age" in basic_info and basic_info["age"] is not None:
+            if not isinstance(basic_info["age"], int) or basic_info["age"] < 0 or basic_info["age"] > 120:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Age must be between 0 and 120"
+                )
+            profile.age = basic_info["age"]
+        
+        if "height" in basic_info and basic_info["height"] is not None:
+            if not isinstance(basic_info["height"], (int, float)) or basic_info["height"] <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Height must be a positive number"
+                )
+            profile.height = float(basic_info["height"])
+        
+        if "weight" in basic_info and basic_info["weight"] is not None:
+            if not isinstance(basic_info["weight"], (int, float)) or basic_info["weight"] <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Weight must be a positive number"
+                )
+            profile.weight = float(basic_info["weight"])
+        
+        if "name" in basic_info and basic_info["name"] is not None:
+            if not isinstance(basic_info["name"], str) or len(basic_info["name"].strip()) == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Name must be a non-empty string"
+                )
+            profile.name = basic_info["name"].strip()
+        
+        if "nick_name" in basic_info:
+            if basic_info["nick_name"] is not None and not isinstance(basic_info["nick_name"], str):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Nickname must be a string or null"
+                )
+            profile.nick_name = basic_info["nick_name"]
+        
+        await db.commit()
+        
+        return {"message": "Profile updated successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Profile update failed: {str(e)}"
         )
