@@ -14,7 +14,7 @@ from loguru import logger
 import sys
 
 from core.config import settings
-from core.database import engine, Base
+from core.database import engine, Base, test_db_connection
 from api.routes import auth, app as app_router, chat, article, dashboard, pcos, report
 from core.security import get_current_user
 
@@ -29,8 +29,10 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting She&Soul FastAPI application...")
     
-    # Note: Database tables will be created on first connection
-    # This avoids startup issues if database is not immediately available
+    # Test database connection
+    if not await test_db_connection():
+        raise RuntimeError("Database connection failed")
+    
     logger.info("Application startup complete")
     yield
     
@@ -93,4 +95,4 @@ if __name__ == "__main__":
         port=8000,
         reload=True,
         log_level="info"
-    ) 
+    )
