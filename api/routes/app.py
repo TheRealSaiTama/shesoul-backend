@@ -318,59 +318,66 @@ async def update_profile_basic(
     try:
         result = await db.execute(select(Profile).where(Profile.user_id == current_user.id))
         profile = result.scalar_one_or_none()
-        
+
         if not profile:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Profile not found"
             )
-        
-        # Update only provided fields
+
+        # 2) Update only provided fields with validation
         if "age" in basic_info and basic_info["age"] is not None:
-            if not isinstance(basic_info["age"], int) or basic_info["age"] < 0 or basic_info["age"] > 120:
+            age_val = basic_info["age"]
+            if not isinstance(age_val, int) or age_val < 0 or age_val > 120:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Age must be between 0 and 120"
                 )
-            profile.age = basic_info["age"]
-        
+            profile.age = age_val
+
         if "height" in basic_info and basic_info["height"] is not None:
-            if not isinstance(basic_info["height"], (int, float)) or basic_info["height"] <= 0:
+            height_val = basic_info["height"]
+            if not isinstance(height_val, (int, float)) or float(height_val) <= 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Height must be a positive number"
                 )
-            profile.height = float(basic_info["height"])
-        
+            profile.height = float(height_val)
+
         if "weight" in basic_info and basic_info["weight"] is not None:
-            if not isinstance(basic_info["weight"], (int, float)) or basic_info["weight"] <= 0:
+            weight_val = basic_info["weight"]
+            if not isinstance(weight_val, (int, float)) or float(weight_val) <= 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Weight must be a positive number"
                 )
-            profile.weight = float(basic_info["weight"])
-        
+            profile.weight = float(weight_val)
+
         if "name" in basic_info and basic_info["name"] is not None:
-            if not isinstance(basic_info["name"], str) or len(basic_info["name"].strip()) == 0:
+            name_val = basic_info["name"]
+            if not isinstance(name_val, str) or len(name_val.strip()) == 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Name must be a non-empty string"
                 )
-            profile.name = basic_info["name"].strip()
-        
+            profile.name = name_val.strip()
+
         if "nick_name" in basic_info:
-            if basic_info["nick_name"] is not None and not isinstance(basic_info["nick_name"], str):
+            nickname_val = basic_info["nick_name"]
+            if nickname_val is not None and not isinstance(nickname_val, str):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Nickname must be a string or null"
                 )
-            profile.nick_name = basic_info["nick_name"]
-        
+            profile.nick_name = nickname_val
+
+        # 3) Commit without errors
         await db.commit()
-        
+
         return {"message": "Profile updated successfully"}
-        
+
     except HTTPException:
+        # Re-raise intentional API errors
         raise
     except Exception as e:
         await db.rollback()
