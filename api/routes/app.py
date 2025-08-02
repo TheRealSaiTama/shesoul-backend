@@ -121,6 +121,7 @@ def login_user(
         return LoginResponse(
             message="Login successful!",
             user_id=user.id,
+            email=user.email,
             jwt=access_token
         )
         
