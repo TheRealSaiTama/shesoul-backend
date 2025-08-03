@@ -194,19 +194,23 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 println("Attempting signup for email: ${request.email}")
                 val response = apiService.signup(request)
                 println("Signup response code: ${response.code()}")
-                println("Signup response body: ${response.body()}")
-                println("Signup error body: ${response.errorBody()?.string()}")
                 
                 if (response.isSuccessful) {
                     val signupResponse = response.body()
-                    val token = signupResponse?.accessToken
-                    if (token != null) {
-                        tokenManager.saveToken(token)
+                    println("Signup response body: $signupResponse")
+                    
+                    // For now, let's consider any successful response as valid
+                    // and try to extract the token
+                    if (signupResponse != null) {
+                        val token = signupResponse.accessToken
+                        if (!token.isNullOrBlank()) {
+                            tokenManager.saveToken(token)
+                        }
+                        _signupResponse.value = Result.success(signupResponse)
+                        sendOtpToBackend(request.email)
                     } else {
-                        throw Exception("Signup access token is null")
+                        _signupResponse.value = Result.failure(Exception("Empty response body"))
                     }
-                    _signupResponse.value = Result.success(signupResponse!!)
-                    sendOtpToBackend(request.email)
                 } else {
                     val errorBody = response.errorBody()?.string() ?: "Signup failed with code: ${response.code()}"
                     println("Signup failed: $errorBody")

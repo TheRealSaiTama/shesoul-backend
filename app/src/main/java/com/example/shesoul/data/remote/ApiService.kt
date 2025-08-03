@@ -1,6 +1,14 @@
 package com.example.shesoul.data.remote
 
 import com.example.shesoul.features.auth.presentation.SignUpRequest
+import com.example.shesoul.features.auth.presentation.SignUpResponse
+import com.example.shesoul.features.auth.presentation.LoginRequest
+import com.example.shesoul.features.auth.presentation.LoginResponse
+import com.example.shesoul.features.auth.presentation.ProfileRequest
+import retrofit2.Response
+import retrofit2.http.*com.example.shesoul.data.remote
+
+import com.example.shesoul.features.auth.presentation.SignUpRequest
 import com.example.shesoul.features.auth.presentation.LoginRequest
 import com.example.shesoul.features.auth.presentation.LoginResponse
 import com.example.shesoul.features.auth.presentation.ProfileRequest
@@ -31,8 +39,8 @@ data class AuthResponse(val jwt: String)
 
 interface ApiService {
     @POST("api/signup")
-    suspend fun signup(@Body request: SignUpRequest): Response<LoginResponse>
-    
+    suspend fun signup(@Body request: SignUpRequest): Response<SignUpResponse>
+        
     @POST("api/resend-otp")
     suspend fun sendOtp(@Body request: ResendOtpRequest): Response<ResendOtpResponse>
     

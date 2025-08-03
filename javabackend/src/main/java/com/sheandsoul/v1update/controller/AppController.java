@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sheandsoul.v1update.dto.CyclePredictionDto;
@@ -26,6 +27,7 @@ import com.sheandsoul.v1update.dto.ProfileResponse;
 import com.sheandsoul.v1update.dto.ProfileServiceDto;
 import com.sheandsoul.v1update.dto.ResendOtpRequest;
 import com.sheandsoul.v1update.dto.SignUpRequest;
+import com.sheandsoul.v1update.dto.AuthResponseDto;
 import com.sheandsoul.v1update.dto.VerifyEmailRequest;
 import com.sheandsoul.v1update.entities.SymptomLocation;
 import com.sheandsoul.v1update.entities.SymptomSide;
@@ -88,11 +90,14 @@ public class AppController {
 
             final String jwt = jwtUtil.generateToken(userDetails);
             // In a real app, you'd return a JWT here instead of the full user object.
-            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
-                "message", "User registered successfully!",
-                "userId", user.getId(),
-                "jwt" , jwt           
-                 ));
+            // Return structured DTO aligning with Android client expectations
+            AuthResponseDto responseDto = new AuthResponseDto(
+                "User registered successfully! Please check your email for an OTP.",
+                user.getId(),
+                user.getEmail(),
+                jwt
+            );
+            return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         }
@@ -243,5 +248,14 @@ public ResponseEntity<?> loginUser(@Valid @RequestBody LoginRequest loginRequest
         }
     }
 
-    
+    // DEBUG: Retrieve latest OTP for a given email
+    @GetMapping("/debug/latest-otp")
+    public ResponseEntity<?> getLatestOtp(@RequestParam String email) {
+        try {
+            String otp = appService.getLatestOtpForEmail(email);
+            return ResponseEntity.ok(Map.of("email", email, "otp", otp));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
+        }
+    }
 }
