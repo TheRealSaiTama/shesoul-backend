@@ -42,8 +42,6 @@ async def get_db() -> AsyncSession:
             logger.error(f"Database session error: {e}")
             await session.rollback()
             raise
-        finally:
-            await session.close()
 
 # Test database connection
 async def test_db_connection():
