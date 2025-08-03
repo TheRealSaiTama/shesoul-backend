@@ -17,7 +17,8 @@ engine = create_async_engine(
     max_overflow=10,
     pool_pre_ping=True,
     pool_recycle=300,
-    future=True
+    future=True,
+    drivername='postgresql+asyncpg'
 )
 
 # Create async session factory
