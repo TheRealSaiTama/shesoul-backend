@@ -4,7 +4,7 @@ Authentication routes for She&Soul FastAPI application
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request # Import Request
 from sqlalchemy.ext.asyncio import AsyncSession # Import AsyncSession
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from core.database import get_db
 from core.security import verify_password, create_access_token, get_current_user, get_password_hash
@@ -25,7 +25,9 @@ async def signup( # Make the function async
     """
     try: # Use await for asynchronous operations
         # Check if user already exists
-        existing_user = db.query(User).filter(User.email == signup_request.email).first()
+        result = await db.execute(select(User).where(User.email == signup_request.email))
+        existing_user = result.scalar_one_or_none()
+        
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -54,6 +56,7 @@ async def signup( # Make the function async
     except HTTPException:
         raise
     except Exception as e:
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Signup failed: {str(e)}"
@@ -71,7 +74,8 @@ async def login( # Make the function async
     """
     try:
         # Find user by email using async query
-        user = db.query(User).filter(User.email == login_request.email).first()
+        result = await db.execute(select(User).where(User.email == login_request.email))
+        user = result.scalar_one_or_none()
         
         if not user:
             raise HTTPException(

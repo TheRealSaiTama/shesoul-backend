@@ -4,7 +4,6 @@ Based on Java implementation for production readiness
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Dict, Any
@@ -24,16 +23,16 @@ router = APIRouter()
 app_service = AppService()
 
 @router.post("/signup", response_model=SignUpResponse)
-def signup_user(
+async def signup_user(
     signup_request: SignUpRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Register a new user (simplified like Java implementation)
     Only requires email and password, profile creation is separate
     """
     try:
-        user = app_service.register_user(db, signup_request)
+        user = await app_service.register_user(db, signup_request)
         
         # Create JWT token
         access_token = create_access_token(data={"sub": user.email})
@@ -61,15 +60,15 @@ def signup_user(
         )
 
 @router.post("/verify-email")
-def verify_email(
+async def verify_email(
     request: VerifyEmailRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Verify user email with OTP
     """
     try:
-        app_service.verify_email(db, request.email, request.otp)
+        await app_service.verify_email(db, request.email, request.otp)
         return {"message": "Email verified successfully!"}
         
     except ValueError as e:
@@ -84,15 +83,15 @@ def verify_email(
         )
 
 @router.post("/resend-otp")
-def resend_otp(
+async def resend_otp(
     request: ResendOtpRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Resend OTP to user email
     """
     try:
-        app_service.resend_otp(db, request.email)
+        await app_service.resend_otp(db, request.email)
         return {"message": "OTP resent successfully!"}
         
     except ValueError as e:
@@ -107,15 +106,15 @@ def resend_otp(
         )
 
 @router.post("/login", response_model=LoginResponse)
-def login_user(
+async def login_user(
     login_request: LoginRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Login user and return JWT token
     """
     try:
-        user = app_service.login_user(db, login_request.email, login_request.password)
+        user = await app_service.login_user(db, login_request.email, login_request.password)
         
         # Create JWT token
         access_token = create_access_token(data={"sub": user.email})
@@ -139,16 +138,16 @@ def login_user(
         )
 
 @router.post("/profile", response_model=ProfileResponse)
-def create_profile(
+async def create_profile(
     profile_request: ProfileRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Create user profile
     """
     try:
-        return app_service.create_profile(db, profile_request, current_user)
+        return await app_service.create_profile(db, profile_request, current_user)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -161,15 +160,15 @@ def create_profile(
         )
 
 @router.get("/profile", response_model=ProfileResponse)
-def get_profile(
-    db: Session = Depends(get_db),
+async def get_profile(
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Get user profile
     """
     try:
-        profile = app_service.find_profile_by_user_id(db, current_user.id)
+        profile = await app_service.find_profile_by_user_id(db, current_user.id)
         return ProfileResponse.from_orm(profile)
     except ValueError as e:
         raise HTTPException(
@@ -183,16 +182,16 @@ def get_profile(
         )
 
 @router.put("/profile/service", response_model=ProfileServiceDto)
-def update_service(
+async def update_service(
     service_dto: ProfileServiceDto,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Update user service preferences
     """
     try:
-        return app_service.update_user_service(db, current_user.id, service_dto)
+        return await app_service.update_user_service(db, current_user.id, service_dto)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -205,16 +204,16 @@ def update_service(
         )
 
 @router.put("/profile/menstrual-data", response_model=MenstrualTrackingDto)
-def update_menstrual_data(
+async def update_menstrual_data(
     update_dto: MenstrualTrackingDto,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Update menstrual tracking data
     """
     try:
-        return app_service.update_menstrual_data(db, current_user.id, update_dto)
+        return await app_service.update_menstrual_data(db, current_user.id, update_dto)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -227,15 +226,15 @@ def update_menstrual_data(
         )
 
 @router.get("/cycle-prediction", response_model=CyclePredictionDto)
-def get_cycle_prediction(
-    db: Session = Depends(get_db),
+async def get_cycle_prediction(
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Get next cycle prediction
     """
     try:
-        return app_service.predict_next_cycle(db, current_user.id)
+        return await app_service.predict_next_cycle(db, current_user.id)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -248,15 +247,15 @@ def get_cycle_prediction(
         )
 
 @router.get("/cycle-prediction-text", response_model=str)
-def get_cycle_prediction_text(
-    db: Session = Depends(get_db),
+async def get_cycle_prediction_text(
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Get cycle prediction as formatted text
     """
     try:
-        return app_service.get_cycle_prediction_as_text(db, current_user.id)
+        return await app_service.get_cycle_prediction_as_text(db, current_user.id)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -264,15 +263,15 @@ def get_cycle_prediction_text(
         )
 
 @router.get("/partner-data", response_model=PartnerDataDto)
-def get_partner_data(
-    db: Session = Depends(get_db),
+async def get_partner_data(
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Get partner data for the logged-in partner
     """
     try:
-        return app_service.get_partner_data(db, current_user.id)
+        return await app_service.get_partner_data(db, current_user.id)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -285,16 +284,16 @@ def get_partner_data(
         )
 
 @router.post("/mcq-risk-assessment", response_model=str)
-def process_mcq_risk_assessment(
+async def process_mcq_risk_assessment(
     answers: Dict[str, str],
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Process MCQ risk assessment and return risk level
     """
     try:
-        return app_service.process_mcq_risk_assessment(db, current_user.id, answers)
+        return await app_service.process_mcq_risk_assessment(db, current_user.id, answers)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

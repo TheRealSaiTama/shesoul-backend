@@ -9,14 +9,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Create asynchronous engine
+# Create asynchronous engine with optimized pool settings for production
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,
-    pool_size=5,
-    max_overflow=10,
+    pool_size=3,  # Reduced from 5 to avoid connection limits
+    max_overflow=5,  # Reduced from 10 to avoid connection limits
     pool_pre_ping=True,
     pool_recycle=300,
+    pool_timeout=30,  # Add timeout for connection acquisition
     future=True,
     drivername='postgresql+asyncpg'
 )
