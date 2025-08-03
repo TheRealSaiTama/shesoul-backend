@@ -9,7 +9,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object RetrofitInstance {
-    private const val BASE_URL = "https://shesoul-backend.onrender.com/"
+    private const val BASE_URL = "https://sheandsoulversion1deploy.onrender.com/"
     
     private var authToken: String? = null
     

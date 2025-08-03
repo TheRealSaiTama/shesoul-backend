@@ -59,9 +59,17 @@ public class AppService {
 
         User savedUser = userRepository.save(newUser);
 
-        String otp = otpGenerationService.generateOtp();
-        otpGenerationService.storeOtp(savedUser.getEmail(), otp);
-        emailService.sendOtpEmail(savedUser.getEmail(), otp);
+        try {
+            String otp = otpGenerationService.generateOtp();
+            otpGenerationService.storeOtp(savedUser.getEmail(), otp);
+            emailService.sendOtpEmail(savedUser.getEmail(), otp);
+            System.out.println("User registered successfully and OTP email sent to: " + savedUser.getEmail());
+        } catch (Exception e) {
+            System.err.println("User registration successful but OTP email failed for: " + savedUser.getEmail());
+            System.err.println("Email error: " + e.getMessage());
+            e.printStackTrace();
+            // Don't throw the exception - user is still registered, they can request OTP resend
+        }
 
         return savedUser;
         
@@ -116,7 +124,10 @@ public class AppService {
             profile.setAge(request.age());
             profile.setHeight(request.height());
             profile.setWeight(request.weight());
-            profile.setPreferredServiceType(request.preferredServiceType());
+            // Set preferredServiceType only if provided, can be null initially
+            if (request.preferredServiceType() != null) {
+                profile.setPreferredServiceType(request.preferredServiceType());
+            }
             
             Profile savedProfile = profileRepository.saveAndFlush(profile);
             
@@ -126,6 +137,7 @@ public class AppService {
             } while (profileRepository.existsByReferralCode(newCode));
 
             savedProfile.setReferralCode(newCode);
+            savedProfile = profileRepository.save(savedProfile); // Save the profile again with referral code
             
             return new ProfileResponse(
                 savedProfile.getId(),
@@ -272,6 +284,30 @@ public MenstrualTrackingDto updateMenstrualData(Long userId, MenstrualTrackingDt
             .orElseThrow(() -> new IllegalArgumentException("Profile not found for user ID: " + userId));
 
         profile.setLanguageCode(languageCode);
+        return profileRepository.save(profile);
+    }
+
+    public Profile updateBasicProfile(Long userId, Map<String, Object> updateData) {
+        Profile profile = profileRepository.findByUserId(userId)
+            .orElseThrow(() -> new IllegalArgumentException("Profile not found for user ID: " + userId));
+
+        // Update fields if they exist in the payload
+        if (updateData.containsKey("age") && updateData.get("age") != null) {
+            profile.setAge(((Number) updateData.get("age")).intValue());
+        }
+        if (updateData.containsKey("height") && updateData.get("height") != null) {
+            profile.setHeight(((Number) updateData.get("height")).doubleValue());
+        }
+        if (updateData.containsKey("weight") && updateData.get("weight") != null) {
+            profile.setWeight(((Number) updateData.get("weight")).doubleValue());
+        }
+        if (updateData.containsKey("name") && updateData.get("name") != null) {
+            profile.setName((String) updateData.get("name"));
+        }
+        if (updateData.containsKey("nick_name") && updateData.get("nick_name") != null) {
+            profile.setNickName((String) updateData.get("nick_name"));
+        }
+
         return profileRepository.save(profile);
     }
 

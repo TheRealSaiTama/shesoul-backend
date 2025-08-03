@@ -42,10 +42,6 @@ interface ApiService {
     @POST("api/profile")
     suspend fun createProfile(@Body profileRequest: ProfileRequest): Response<ApiResponse>
 
-    // Update basic profile information (age, height, weight, name, nickname)
-    @PUT("api/profile/basic")
-    suspend fun patchProfile(@Body patch: ProfilePatchRequest): Response<ApiResponse>
-
     // Update user services
     @PUT("api/services")
     suspend fun updateUserServices(@Body services: ProfilePatchRequest): Response<ApiResponse>

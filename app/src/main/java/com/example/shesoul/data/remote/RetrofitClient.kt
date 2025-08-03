@@ -8,7 +8,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import android.content.Context
 
 object RetrofitClient {
-    private const val BASE_URL = "https://shesoul-backend.onrender.com/"
+    private const val BASE_URL = "https://sheandsoulversion1deploy.onrender.com/"
 
     fun create(context: Context): ApiService {
         val tokenManager = TokenManager(context)

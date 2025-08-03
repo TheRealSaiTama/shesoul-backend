@@ -3,16 +3,16 @@ package com.example.shesoul.features.auth.presentation
 import com.google.gson.annotations.SerializedName
 
 /**
- * Aligns Android JSON keys with FastAPI schema at api/schemas/profile.py:
+ * Aligns Android JSON keys with Java backend ProfileRequest schema:
  * - user_type (required)
  * - name (required, non-empty)
  * - nickname -> nickname
  * - age, height, weight -> optional
- * - preferred_service_type -> optional; server expects MENSTRUATION | BREAST_HEALTH | MENTAL_HEALTH | PCOS
+ * - preferred_service_type -> optional; server expects MENSTRUAL | BREAST_CANCER | MENTAL_HEALTH
  * - referred_by_code -> optional
  *
  * userId is omitted; server infers user_id from Bearer token.
- * language_code is not part of the active api/schemas/profile.py, so we do not send preferredLanguage.
+ * language_code is not part of the active schema, so we do not send preferredLanguage.
  */
 data class ProfileRequest(
     @SerializedName("name") val name: String,
@@ -32,12 +32,11 @@ enum class UserType {
 }
 
 /**
- * Server's expected service types per api/schemas/profile.py:
- * MENSTRUATION, BREAST_HEALTH, MENTAL_HEALTH, PCOS
+ * Server's expected service types per Java backend UserServiceType.java:
+ * MENSTRUAL, BREAST_CANCER, MENTAL_HEALTH
  */
 enum class ServiceType {
-    MENSTRUATION,
-    BREAST_HEALTH,
-    MENTAL_HEALTH,
-    PCOS
+    MENSTRUAL,
+    BREAST_CANCER,
+    MENTAL_HEALTH
 }
