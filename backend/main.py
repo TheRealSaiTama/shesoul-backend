@@ -29,9 +29,14 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting She&Soul FastAPI application...")
     
-    # Test database connection
-    if not await test_db_connection():
-        raise RuntimeError("Database connection failed")
+    # Test database connection (optional for deployment)
+    try:
+        if await test_db_connection():
+            logger.info("Database connection successful")
+        else:
+            logger.warning("Database connection failed - continuing without database")
+    except Exception as e:
+        logger.warning(f"Database connection error - continuing without database: {e}")
     
     logger.info("Application startup complete")
     yield
@@ -81,7 +86,18 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "She&Soul API"}
+    return {"status": "healthy", "service": "She&Soul API", "version": "1.0.0"}
+
+@app.get("/health/db")
+async def health_check_db():
+    """Database health check endpoint"""
+    try:
+        if await test_db_connection():
+            return {"status": "healthy", "database": "connected"}
+        else:
+            return {"status": "degraded", "database": "disconnected"}
+    except Exception as e:
+        return {"status": "degraded", "database": "error", "message": str(e)}
 
 @app.get("/protected")
 async def protected_route(current_user = Depends(get_current_user)):
