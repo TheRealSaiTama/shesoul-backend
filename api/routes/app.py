@@ -24,16 +24,16 @@ router = APIRouter()
 app_service = AppService()
 
 @router.post("/signup", response_model=SignUpResponse)
-def signup_user(
+async def signup_user(
     signup_request: SignUpRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Register a new user (simplified like Java implementation)
     Only requires email and password, profile creation is separate
     """
     try:
-        user = app_service.register_user(db, signup_request)
+        user = await app_service.register_user(db, signup_request)
         
         # Create JWT token
         access_token = create_access_token(data={"sub": user.email})
@@ -61,15 +61,15 @@ def signup_user(
         )
 
 @router.post("/verify-email")
-def verify_email(
+async def verify_email(
     request: VerifyEmailRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Verify user email with OTP
     """
     try:
-        app_service.verify_email(db, request.email, request.otp)
+        await app_service.verify_email(db, request.email, request.otp)
         return {"message": "Email verified successfully!"}
         
     except ValueError as e:
@@ -84,15 +84,15 @@ def verify_email(
         )
 
 @router.post("/resend-otp")
-def resend_otp(
+async def resend_otp(
     request: ResendOtpRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Resend OTP to user email
     """
     try:
-        app_service.resend_otp(db, request.email)
+        await app_service.resend_otp(db, request.email)
         return {"message": "OTP resent successfully!"}
         
     except ValueError as e:
@@ -107,15 +107,15 @@ def resend_otp(
         )
 
 @router.post("/login", response_model=LoginResponse)
-def login_user(
+async def login_user(
     login_request: LoginRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Login user and return JWT token
     """
     try:
-        user = app_service.login_user(db, login_request.email, login_request.password)
+        user = await app_service.login_user(db, login_request.email, login_request.password)
         
         # Create JWT token
         access_token = create_access_token(data={"sub": user.email})

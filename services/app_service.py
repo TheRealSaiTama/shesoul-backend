@@ -5,7 +5,7 @@ Based on Java implementation
 
 from typing import Dict, Any, Optional
 from datetime import datetime, date, timedelta
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from db.models.user import User
 from db.models.profile import Profile, UserType, UserServiceType
@@ -27,13 +27,14 @@ class AppService:
         self.email_service = EmailService()
         self.referral_service = ReferralCodeService()
     
-    def register_user(self, db: Session, request: SignUpRequest) -> User:
+    async def register_user(self, db: AsyncSession, request: SignUpRequest) -> User:
         """
         Register a new user (simplified like Java implementation)
         Only requires email and password
         """
         # Check if user already exists
-        existing_user = db.query(User).filter(User.email == request.email).first()
+        result = await db.execute(select(User).where(User.email == request.email))
+        existing_user = result.scalar_one_or_none()
         
         if existing_user:
             raise ValueError("Email already in use")
@@ -46,20 +47,21 @@ class AppService:
         )
         
         db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
+        await db.commit()
+        await db.refresh(new_user)
         
         # TODO: Add OTP email sending back after basic signup works
         otp = self.otp_service.generate_otp()
-        self.otp_service.store_otp(db, new_user.email, otp)
+        await self.otp_service.store_otp(db, new_user.email, otp)
         self.email_service.send_otp_email(new_user.email, otp)
         
         return new_user
     
-    def verify_email(self, db: Session, email: str, submitted_otp: str) -> None:
+    async def verify_email(self, db: AsyncSession, email: str, submitted_otp: str) -> None:
         """Verify user email with OTP"""
         # Find user
-        user = db.query(User).filter(User.email == email).first()
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
         
         if not user:
             raise ValueError(f"User not found with email: {email}")
@@ -68,19 +70,20 @@ class AppService:
             raise ValueError("Email is already verified.")
         
         # Validate OTP
-        valid_otp = self.otp_service.is_otp_valid(db, email, submitted_otp)
+        valid_otp = await self.otp_service.is_otp_valid(db, email, submitted_otp)
         if not valid_otp:
             raise ValueError("Invalid or expired OTP.")
         
         # Mark email as verified and OTP as used
         user.is_email_verified = True
-        self.otp_service.mark_otp_as_used(db, valid_otp)
-        db.commit()
+        await self.otp_service.mark_otp_as_used(db, valid_otp)
+        await db.commit()
     
-    def resend_otp(self, db: Session, email: str) -> None:
+    async def resend_otp(self, db: AsyncSession, email: str) -> None:
         """Resend OTP to user email"""
         # Find user
-        user = db.query(User).filter(User.email == email).first()
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
         
         if not user:
             raise ValueError(f"User not found with email: {email}")
@@ -90,10 +93,10 @@ class AppService:
         
         # Generate and send new OTP
         otp = self.otp_service.generate_otp()
-        self.otp_service.store_otp(db, user.email, otp)
+        await self.otp_service.store_otp(db, user.email, otp)
         self.email_service.send_otp_email(user.email, otp)
     
-    def create_profile(self, db: Session, request: ProfileRequest, user: User) -> ProfileResponse:
+    def create_profile(self, db: AsyncSession, request: ProfileRequest, user: User) -> ProfileResponse:
         """
         Create user profile (separate from signup like Java implementation)
         """
@@ -156,21 +159,24 @@ class AppService:
             referral_code=profile.referral_code
         )
     
-    def login_user(self, db: Session, email: str, password: str) -> User:
+    async def login_user(self, db: AsyncSession, email: str, password: str) -> User:
         """Login user with email and password"""
         from core.security import verify_password
         
-        user = db.query(User).filter(User.email == email).first()
+        # Find user by email
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
         
         if not user:
             raise ValueError("Invalid email or password")
         
+        # Verify password
         if not verify_password(password, user.password):
             raise ValueError("Invalid email or password")
         
         return user
     
-    def get_user_by_id(self, db: Session, user_id: int) -> User:
+    def get_user_by_id(self, db: AsyncSession, user_id: int) -> User:
         """Get user by ID"""
         user = db.query(User).filter(User.id == user_id).first()
         
@@ -179,7 +185,7 @@ class AppService:
         
         return user
     
-    def update_user_service(self, db: Session, user_id: int, service_dto: ProfileServiceDto) -> ProfileServiceDto:
+    def update_user_service(self, db: AsyncSession, user_id: int, service_dto: ProfileServiceDto) -> ProfileServiceDto:
         """Update user service preferences"""
         profile = db.query(Profile).filter(Profile.user_id == user_id).first()
         
@@ -191,7 +197,7 @@ class AppService:
         
         return ProfileServiceDto(preferred_service_type=profile.preferred_service_type)
     
-    def update_menstrual_data(self, db: Session, user_id: int, update_dto: MenstrualTrackingDto) -> MenstrualTrackingDto:
+    def update_menstrual_data(self, db: AsyncSession, user_id: int, update_dto: MenstrualTrackingDto) -> MenstrualTrackingDto:
         """Update menstrual tracking data"""
         profile = db.query(Profile).filter(Profile.user_id == user_id).first()
         
@@ -211,7 +217,7 @@ class AppService:
         db.commit()
         return update_dto
     
-    def predict_next_cycle(self, db: Session, user_id: int) -> CyclePredictionDto:
+    def predict_next_cycle(self, db: AsyncSession, user_id: int) -> CyclePredictionDto:
         """Predict next menstrual cycle"""
         profile = db.query(Profile).filter(Profile.user_id == user_id).first()
         
@@ -243,7 +249,7 @@ class AppService:
             next_fertile_window_end_date=next_ovulation_date + timedelta(days=1)
         )
     
-    def get_cycle_prediction_as_text(self, db: Session, user_id: int) -> str:
+    def get_cycle_prediction_as_text(self, db: AsyncSession, user_id: int) -> str:
         """Get cycle prediction as formatted text"""
         try:
             prediction = self.predict_next_cycle(db, user_id)
@@ -258,7 +264,7 @@ class AppService:
         except Exception:
             return "The user has not provided enough information to generate a cycle prediction. Please ask them to complete their menstrual cycle setup."
     
-    def find_profile_by_user_id(self, db: Session, user_id: int) -> Profile:
+    def find_profile_by_user_id(self, db: AsyncSession, user_id: int) -> Profile:
         """Find profile by user ID"""
         profile = db.query(Profile).filter(Profile.user_id == user_id).first()
         
@@ -267,20 +273,20 @@ class AppService:
         
         return profile
     
-    def update_user_language(self, db: Session, user_id: int, language_code: str) -> Profile:
+    def update_user_language(self, db: AsyncSession, user_id: int, language_code: str) -> Profile:
         """Update user language preference"""
         profile = self.find_profile_by_user_id(db, user_id)
         profile.language_code = language_code
         db.commit()
         return profile
     
-    def save_profile(self, db: Session, profile: Profile) -> Profile:
+    def save_profile(self, db: AsyncSession, profile: Profile) -> Profile:
         """Save profile"""
         db.commit()
         db.refresh(profile)
         return profile
     
-    def get_partner_data(self, db: Session, user_id: int) -> PartnerDataDto:
+    def get_partner_data(self, db: AsyncSession, user_id: int) -> PartnerDataDto:
         """Get partner data for the logged-in partner"""
         partner_profile = db.query(Profile).filter(Profile.user_id == user_id).first()
         
@@ -305,7 +311,7 @@ class AppService:
             cycle_prediction=cycle_prediction
         )
     
-    def process_mcq_risk_assessment(self, db: Session, user_id: int, answers: Dict[str, str]) -> str:
+    def process_mcq_risk_assessment(self, db: AsyncSession, user_id: int, answers: Dict[str, str]) -> str:
         """Process MCQ risk assessment and return risk level"""
         profile = self.find_profile_by_user_id(db, user_id)
         

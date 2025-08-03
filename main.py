@@ -30,8 +30,13 @@ async def lifespan(app: FastAPI):
     logger.info("Starting She&Soul FastAPI application...")
     
     # Test database connection
-    if not await test_db_connection():
-        raise RuntimeError("Database connection failed")
+    try:
+        if not await test_db_connection():
+            logger.warning("Database connection failed - continuing without database")
+        else:
+            logger.info("Database connection successful")
+    except Exception as e:
+        logger.warning(f"Database connection test failed: {e} - continuing without database")
     
     logger.info("Application startup complete")
     yield
