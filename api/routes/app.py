@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Dict, Any
 
-from core.database import get_db
+from core.database import get_sync_db
 from core.security import get_current_user, create_access_token
 from db.models.user import User
 from db.models.profile import Profile, UserType, UserServiceType
@@ -26,7 +26,7 @@ app_service = AppService()
 @router.post("/signup", response_model=SignUpResponse)
 def signup_user(
     signup_request: SignUpRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_sync_db)
 ):
     """
     Register a new user (simplified like Java implementation)
@@ -63,7 +63,7 @@ def signup_user(
 @router.post("/verify-email")
 def verify_email(
     request: VerifyEmailRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_sync_db)
 ):
     """
     Verify user email with OTP
@@ -86,7 +86,7 @@ def verify_email(
 @router.post("/resend-otp")
 def resend_otp(
     request: ResendOtpRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_sync_db)
 ):
     """
     Resend OTP to user email
@@ -109,7 +109,7 @@ def resend_otp(
 @router.post("/login", response_model=LoginResponse)
 def login_user(
     login_request: LoginRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_sync_db)
 ):
     """
     Login user and return JWT token
@@ -141,7 +141,7 @@ def login_user(
 @router.post("/profile", response_model=ProfileResponse)
 def create_profile(
     profile_request: ProfileRequest,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_sync_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -162,7 +162,7 @@ def create_profile(
 
 @router.get("/profile", response_model=ProfileResponse)
 def get_profile(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_sync_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -185,7 +185,7 @@ def get_profile(
 @router.put("/profile/service", response_model=ProfileServiceDto)
 def update_service(
     service_dto: ProfileServiceDto,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_sync_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -207,7 +207,7 @@ def update_service(
 @router.put("/profile/menstrual-data", response_model=MenstrualTrackingDto)
 def update_menstrual_data(
     update_dto: MenstrualTrackingDto,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_sync_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -228,7 +228,7 @@ def update_menstrual_data(
 
 @router.get("/cycle-prediction", response_model=CyclePredictionDto)
 def get_cycle_prediction(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_sync_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -249,7 +249,7 @@ def get_cycle_prediction(
 
 @router.get("/cycle-prediction-text", response_model=str)
 def get_cycle_prediction_text(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_sync_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -265,7 +265,7 @@ def get_cycle_prediction_text(
 
 @router.get("/partner-data", response_model=PartnerDataDto)
 def get_partner_data(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_sync_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -287,7 +287,7 @@ def get_partner_data(
 @router.post("/mcq-risk-assessment", response_model=str)
 def process_mcq_risk_assessment(
     answers: Dict[str, str],
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_sync_db),
     current_user: User = Depends(get_current_user)
 ):
     """
