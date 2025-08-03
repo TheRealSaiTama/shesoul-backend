@@ -14,7 +14,7 @@ from loguru import logger
 import sys
 
 from core.config import settings
-from core.database import engine, Base, test_db_connection
+from core.database import engine, Base, test_db_connection, check_db_health
 from api.routes import auth, app as app_router, chat, article, dashboard, pcos, report
 from core.security import get_current_user
 
@@ -29,15 +29,28 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting She&Soul FastAPI application...")
     
-    # Test database connection
-    if not await test_db_connection():
-        raise RuntimeError("Database connection failed")
+    # Test database connection - continue with warning if it fails
+    try:
+        db_connected = await test_db_connection()
+        if not db_connected:
+            logger.warning("Database connection failed - continuing without database")
+        else:
+            logger.info("Database connection established successfully")
+    except Exception as e:
+        logger.warning(f"Database connection failed - continuing without database: {e}")
     
     logger.info("Application startup complete")
     yield
     
     # Shutdown
     logger.info("Shutting down She&Soul FastAPI application...")
+    
+    # Close database engine
+    try:
+        await engine.dispose()
+        logger.info("Database connections closed")
+    except Exception as e:
+        logger.error(f"Error closing database connections: {e}")
 
 # Create FastAPI app
 app = FastAPI(
@@ -80,8 +93,29 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "service": "She&Soul API"}
+    """Health check endpoint with database status"""
+    db_healthy = await check_db_health()
+    return {
+        "status": "healthy" if db_healthy else "degraded",
+        "service": "She&Soul API",
+        "database": "connected" if db_healthy else "disconnected"
+    }
+
+@app.get("/health/db")
+async def database_health():
+    """Detailed database health check"""
+    try:
+        db_healthy = await check_db_health()
+        return {
+            "database_status": "healthy" if db_healthy else "unhealthy",
+            "timestamp": "2025-08-03T06:00:00Z"
+        }
+    except Exception as e:
+        return {
+            "database_status": "error",
+            "error": str(e),
+            "timestamp": "2025-08-03T06:00:00Z"
+        }
 
 @app.get("/protected")
 async def protected_route(current_user = Depends(get_current_user)):
