@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 
-from core.database import get_db
+from core.database import get_sync_db
 from core.security import verify_password, create_access_token, get_current_user, get_password_hash
 from db.models.user import User
 # Assuming AuthResponse is defined in api.schemas.auth
@@ -17,7 +17,7 @@ router = APIRouter()
 @router.post("/signup", response_model=AuthResponse)
 def signup(
     signup_request: SignUpRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_sync_db)
 ):
     """
     Register a new user
@@ -25,6 +25,7 @@ def signup(
     try:
         # Check if user already exists
         existing_user = db.query(User).filter(User.email == signup_request.email).first()
+        
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -53,6 +54,7 @@ def signup(
     except HTTPException:
         raise
     except Exception as e:
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Signup failed: {str(e)}"
@@ -62,7 +64,7 @@ def signup(
 @router.post("/login", response_model=AuthResponse)
 def login(
     login_request: LoginRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_sync_db)
 ):
     """
     Authenticate user and return JWT token
