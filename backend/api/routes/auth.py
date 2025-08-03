@@ -2,8 +2,9 @@
 Authentication routes for She&Soul FastAPI application
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer
+from fastapi import APIRouter, Depends, HTTPException, status, Request # Import Request
+from sqlalchemy.ext.asyncio import AsyncSession # Import AsyncSession
+from sqlalchemy import select # Import select
 from sqlalchemy.orm import Session
 
 from core.database import get_db
@@ -15,16 +16,18 @@ from api.schemas.auth import LoginRequest, AuthResponse, SignUpRequest
 router = APIRouter()
 
 @router.post("/signup", response_model=AuthResponse)
-def signup(
+async def signup( # Make the function async
     signup_request: SignUpRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db), # Use AsyncSession
+    request: Request = None # Add Request parameter if needed for context
 ):
     """
     Register a new user
     """
-    try:
+    try: # Use await for asynchronous operations
         # Check if user already exists
-        existing_user = db.query(User).filter(User.email == signup_request.email).first()
+        result = await db.execute(select(User).filter(User.email == signup_request.email))
+        existing_user = result.scalars().first()
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -39,9 +42,9 @@ def signup(
         )
         
         db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-        
+        await db.commit() # Await commit
+        await db.refresh(new_user) # Await refresh
+
         # Create access token
         access_token = create_access_token(data={"sub": new_user.email})
         
@@ -60,16 +63,18 @@ def signup(
 
 # FIX: Changed the endpoint path from "/authenticate" to "/login"
 @router.post("/login", response_model=AuthResponse)
-def login(
+async def login( # Make the function async
     login_request: LoginRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db), # Use AsyncSession
+    request: Request = None # Add Request parameter if needed for context
 ):
     """
     Authenticate user and return JWT token
     """
     try:
-        # Find user by email
-        user = db.query(User).filter(User.email == login_request.email).first()
+        # Find user by email using async query
+        result = await db.execute(select(User).filter(User.email == login_request.email))
+        user = result.scalars().first()
         
         if not user:
             raise HTTPException(

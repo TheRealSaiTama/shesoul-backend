@@ -99,7 +99,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from core.config import settings
-from core.database import get_db
+from core.database import get_sync_db
 from db.models.user import User
 
 # Password hashing
@@ -138,7 +138,7 @@ def verify_token(token: str) -> Optional[dict]:
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_sync_db)
 ) -> User:
     """Get current authenticated user"""
     credentials_exception = HTTPException(

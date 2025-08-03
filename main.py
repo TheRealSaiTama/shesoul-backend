@@ -98,7 +98,8 @@ async def health_check():
     return {
         "status": "healthy" if db_healthy else "degraded",
         "service": "She&Soul API",
-        "database": "connected" if db_healthy else "disconnected"
+        "database": "connected" if db_healthy else "disconnected",
+        "version": "1.0.0"
     }
 
 @app.get("/health/db")

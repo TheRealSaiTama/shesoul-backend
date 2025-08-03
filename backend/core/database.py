@@ -17,8 +17,8 @@ engine = create_async_engine(
     max_overflow=10,
     pool_pre_ping=True,
     pool_recycle=300,
-    future=True,
-    drivername='postgresql+asyncpg'
+    pool_timeout=30,
+    future=True
 )
 
 # Create async session factory
@@ -43,8 +43,6 @@ async def get_db() -> AsyncSession:
             logger.error(f"Database session error: {e}")
             await session.rollback()
             raise
-        finally:
-            await session.close()
 
 # Test database connection
 async def test_db_connection():
