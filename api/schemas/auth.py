@@ -41,8 +41,7 @@ class LoginResponse(BaseModel):
     message: str = Field(..., description="Success message")
     user_id: int = Field(..., description="User ID")
     email: str = Field(..., description="User email")
-    access_token: str = Field(..., description="JWT access token")
-    token_type: str = Field(default="bearer", description="Token type")
+    jwt: str = Field(..., description="JWT access token")
 
 class VerifyEmailResponse(BaseModel):
     """Email verification response schema"""

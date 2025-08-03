@@ -4,7 +4,8 @@ Authentication routes for She&Soul FastAPI application
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from core.database import get_db
 from core.security import verify_password, create_access_token, get_current_user, get_password_hash
@@ -15,16 +16,18 @@ from api.schemas.auth import LoginRequest, AuthResponse, SignUpRequest
 router = APIRouter()
 
 @router.post("/signup", response_model=AuthResponse)
-def signup(
+async def signup(
     signup_request: SignUpRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Register a new user
     """
     try:
         # Check if user already exists
-        existing_user = db.query(User).filter(User.email == signup_request.email).first()
+        result = await db.execute(select(User).where(User.email == signup_request.email))
+        existing_user = result.scalar_one_or_none()
+        
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -39,8 +42,8 @@ def signup(
         )
         
         db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
+        await db.commit()
+        await db.refresh(new_user)
         
         # Create access token
         access_token = create_access_token(data={"sub": new_user.email})
@@ -53,6 +56,7 @@ def signup(
     except HTTPException:
         raise
     except Exception as e:
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Signup failed: {str(e)}"
@@ -60,16 +64,17 @@ def signup(
 
 # FIX: Changed the endpoint path from "/authenticate" to "/login"
 @router.post("/login", response_model=AuthResponse)
-def login(
+async def login(
     login_request: LoginRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Authenticate user and return JWT token
     """
     try:
         # Find user by email
-        user = db.query(User).filter(User.email == login_request.email).first()
+        result = await db.execute(select(User).where(User.email == login_request.email))
+        user = result.scalar_one_or_none()
         
         if not user:
             raise HTTPException(

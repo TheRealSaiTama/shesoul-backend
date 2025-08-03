@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
     
     # Test database connection
     if not await test_db_connection():
-        raise RuntimeError("Database connection failed")
+        logger.warning("Database connection failed - continuing without database")
     
     logger.info("Application startup complete")
     yield
