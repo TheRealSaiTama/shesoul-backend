@@ -57,38 +57,20 @@ SyncSessionLocal = sessionmaker(
 # Create base class for models
 Base = declarative_base()
 
-# Dependency to get async database session
+# Dependency to get async database session - emergency safe version
 async def get_db() -> AsyncSession:
-    """Dependency to get an async database session with retry logic"""
-    max_retries = 3
-    retry_delay = 0.5
-    
-    for attempt in range(max_retries):
-        try:
-            async with AsyncSessionLocal() as session:
-                try:
-                    # Test the session with a simple query
-                    await session.execute("SELECT 1")
-                    yield session
-                    await session.commit()
-                    return  # Success, exit retry loop
-                except Exception as e:
-                    logger.error(f"Database session error: {e}")
-                    await session.rollback()
-                    raise
-                finally:
-                    await session.close()
-        except Exception as e:
-            if attempt < max_retries - 1:
-                logger.warning(f"Database session attempt {attempt + 1} failed, retrying: {e}")
-                await asyncio.sleep(retry_delay)
-                retry_delay *= 2  # Exponential backoff
-            else:
-                logger.error(f"All database session attempts failed: {e}")
-                raise HTTPException(
-                    status_code=500,
-                    detail="Database service temporarily unavailable"
-                )
+    """Emergency safe database session - returns error if DB unavailable"""
+    try:
+        async with AsyncSessionLocal() as session:
+            yield session
+            await session.commit()
+    except Exception as e:
+        logger.error(f"Database unavailable: {e}")
+        # Return error response instead of crashing
+        raise HTTPException(
+            status_code=503,
+            detail="Database service temporarily unavailable - please try again later"
+        )
 
 # Dependency to get sync database session for legacy operations
 def get_sync_db():
