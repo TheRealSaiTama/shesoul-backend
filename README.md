@@ -175,6 +175,22 @@ backend/
 
 ## 🚀 Deployment
 
+### Render Deployment (Recommended)
+
+This repository is pre-configured for easy deployment to Render. See [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md) for detailed instructions.
+
+**Quick Deploy:**
+1. Fork/clone this repository
+2. Create new Web Service on [Render](https://render.com)
+3. Connect repository and set environment variables
+4. Deploy! 🚀
+
+The application includes:
+- ✅ `Procfile` - Production server configuration
+- ✅ `requirements.txt` - Python dependencies  
+- ✅ `runtime.txt` - Python version specification
+- ✅ Gunicorn + Uvicorn for production performance
+
 ### Production Deployment
 
 1. **Set production environment variables**
