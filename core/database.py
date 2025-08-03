@@ -10,18 +10,19 @@ from fastapi import HTTPException
 from core.config import settings
 import logging
 import time
+import asyncio
 
 logger = logging.getLogger(__name__)
 
-# Create asynchronous engine with optimized connection pool settings
+# Create asynchronous engine with very conservative connection pool settings
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,
-    pool_size=5,  # Conservative setting for production
-    max_overflow=10,  # Reasonable overflow
+    pool_size=2,  # Very conservative for shared hosting
+    max_overflow=3,  # Minimal overflow
     pool_pre_ping=True,
-    pool_recycle=1800,  # 30 minutes
-    pool_timeout=30,  # Connection timeout
+    pool_recycle=300,  # 5 minutes - shorter recycle time
+    pool_timeout=10,  # Shorter timeout
     future=True
 )
 
@@ -29,11 +30,11 @@ engine = create_async_engine(
 sync_engine = create_engine(
     settings.DATABASE_URL.replace('postgresql+asyncpg://', 'postgresql://'),
     echo=settings.DEBUG,
-    pool_size=3,
-    max_overflow=5,
+    pool_size=1,  # Minimal for sync operations
+    max_overflow=2,  # Very limited
     pool_pre_ping=True,
-    pool_recycle=1800,
-    pool_timeout=30
+    pool_recycle=300,  # 5 minutes
+    pool_timeout=10
 )
 
 # Create async session factory
@@ -58,24 +59,36 @@ Base = declarative_base()
 
 # Dependency to get async database session
 async def get_db() -> AsyncSession:
-    """Dependency to get an async database session with proper error handling"""
-    try:
-        async with AsyncSessionLocal() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception as e:
-                logger.error(f"Database session error: {e}")
-                await session.rollback()
-                raise
-            finally:
-                await session.close()
-    except Exception as e:
-        logger.error(f"Failed to create database session: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Database service temporarily unavailable"
-        )
+    """Dependency to get an async database session with retry logic"""
+    max_retries = 3
+    retry_delay = 0.5
+    
+    for attempt in range(max_retries):
+        try:
+            async with AsyncSessionLocal() as session:
+                try:
+                    # Test the session with a simple query
+                    await session.execute("SELECT 1")
+                    yield session
+                    await session.commit()
+                    return  # Success, exit retry loop
+                except Exception as e:
+                    logger.error(f"Database session error: {e}")
+                    await session.rollback()
+                    raise
+                finally:
+                    await session.close()
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"Database session attempt {attempt + 1} failed, retrying: {e}")
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                logger.error(f"All database session attempts failed: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Database service temporarily unavailable"
+                )
 
 # Dependency to get sync database session for legacy operations
 def get_sync_db():

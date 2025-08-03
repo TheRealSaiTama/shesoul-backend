@@ -15,9 +15,9 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = Field(default=False, env="DEBUG")
     
-    # Database
+    # Database with optimized connection parameters for Supabase pooler
     DATABASE_URL: str = Field(
-        default="postgresql+asyncpg://postgres.bwksvtzocrpugdpyztbg:One2%23fourfive@aws-0-ap-south-1.pooler.supabase.com:6543/postgres",
+        default="postgresql+asyncpg://postgres.bwksvtzocrpugdpyztbg:One2%23fourfive@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pooler=true&connection_limit=1&statement_timeout=30000",
         env="DATABASE_URL"
     )
     

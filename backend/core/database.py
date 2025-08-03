@@ -9,15 +9,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Create asynchronous engine
+# Create asynchronous engine with ultra-conservative settings for Supabase
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,
-    pool_size=5,
-    max_overflow=10,
+    pool_size=1,  # Minimal connections for shared database
+    max_overflow=1,  # Very limited overflow
     pool_pre_ping=True,
-    pool_recycle=300,
-    pool_timeout=30,
+    pool_recycle=120,  # 2 minutes - very short recycle
+    pool_timeout=5,  # Very short timeout
     future=True
 )
 
