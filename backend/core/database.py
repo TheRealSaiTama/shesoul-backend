@@ -17,6 +17,7 @@ engine = create_async_engine(
     max_overflow=10,
     pool_pre_ping=True,
     pool_recycle=300,
+    pool_timeout=30,
     future=True,
 )
 
