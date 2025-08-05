@@ -41,8 +41,11 @@ RUN chown appuser:appgroup /app/app.jar
 # Switch to non-root user
 USER appuser
 
-# Expose the port
+# Expose the port (Railway will override this with PORT env var)
 EXPOSE 8080
 
-# Set the command to run the application
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+# Set environment variable for port
+ENV PORT=8080
+
+# Set the command to run the application with explicit server port
+ENTRYPOINT ["java", "-Dserver.port=${PORT}", "-jar", "/app/app.jar"]
