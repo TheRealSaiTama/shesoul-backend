@@ -45,4 +45,4 @@ USER appuser
 EXPOSE 8080
 
 # Set the command to run the application
-ENTRYPOINT ["java", "-jar", "/app/app.jar", "--spring.profiles.active=prod"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
