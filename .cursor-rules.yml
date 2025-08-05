@@ -1,0 +1,86 @@
+# Cursor Auto Mode Configuration for She&Soul Backend Migration
+
+model:
+  declare_version: true
+  version_message: "Cursor Auto Mode Active — Running on OpenAI GPT-4"
+
+project:
+  name: She&Soul
+  type: backend-migration
+  source_language: java
+  target_language: python
+  target_framework: fastapi
+
+migration:
+  mirror_functionality: true
+  enforce_1_to_1_mapping: true
+  interactive_questions: true
+  questions:
+    - "What is the current database used (e.g., MySQL, PostgreSQL, MongoDB)?"
+    - "Is there any deprecated code that can be excluded from migration?"
+    - "Which authentication method should be implemented (JWT/OAuth2)?"
+    - "Are all endpoints expected to remain the same?"
+    - "Is there file storage integration (e.g., S3/Firebase)?"
+  preserve_routes: true
+  preserve_logic: true
+  translate_tests: true
+  input_validation: pydantic
+  dockerize: true
+
+security:
+  use_jwt_auth: true
+  secure_env_handling: true
+  rate_limiting: true
+  enable_https_forwarding: true
+  cors_policy:
+    allow_origins: ["*"]
+    allow_credentials: true
+    allow_methods: ["*"]
+    allow_headers: ["*"]
+
+structure:
+  backend_directory: backend/
+  folders:
+    - api/
+    - db/
+    - services/
+    - core/
+    - tests/
+  generate_file_structure: true
+
+version_control:
+  git:
+    create_new_branch: fastapi-migration
+    push_to_remote: true
+    protected_branch: true
+    commit_prefix: "feat(api):"
+    pr_template: true
+    github_actions: true
+    link_commits_to_features: true
+
+testing:
+  framework: pytest
+  generate_tests: true
+  location: tests/
+  coverage_required: 85
+  run_on_precommit: true
+  run_on_push: true
+
+logging:
+  use_loguru: true
+  level: info
+  include_request_tracing: true
+
+deployment:
+  docker:
+    create_dockerfile: true
+    create_docker_compose: true
+    gunicorn_with_uvicorn: true
+    expose_port: 8000
+  healthcheck_endpoint: /health
+  autogenerate_docs: true
+
+documentation:
+  generate_readme: true
+  include_env_vars: true
+  include_endpoint_list: true 
