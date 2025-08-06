@@ -54,4 +54,4 @@ ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0 -XX:+UseG
 ENV SPRING_PROFILES_ACTIVE=railway
 
 # Set the command to run the application with explicit server port and JVM options
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Dserver.port=${PORT} -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE} -Djava.security.egd=file:/dev/./urandom -jar /app/app.jar"]
+ENTRYPOINT ["sh", "-c", "echo '--- Environment Variables ---' && printenv && echo '--- Starting Application ---' && java $JAVA_OPTS -Dserver.port=${PORT} -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE} -Djava.security.egd=file:/dev/./urandom -jar /app/app.jar"]
